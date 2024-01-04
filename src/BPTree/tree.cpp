@@ -110,6 +110,7 @@ void Tree::pileup(InnerNode* root){
 void Tree::lock_path(IndexKey key, List<DataNode*>& path){
     assert(root_);
     InnerNode *root = root_;
+    root->write_lock();
     path.push_back(root);
     root->lock_path(key, path);
 }

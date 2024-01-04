@@ -265,7 +265,7 @@ void List<T,Comp>::removeAt(int index){
 template<typename T, class Comp>
 void List<T,Comp>::removeRange(int start, int count){
     if(count<=0){
-        printf("invalidate count to remove from List\n");
+        printf("invalidate count to remove from List: count: %d, start: %d\n",count,start);
         // throw "invalidate count to remove from List";
         return;
     }

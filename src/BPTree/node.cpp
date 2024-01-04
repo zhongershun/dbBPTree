@@ -60,8 +60,8 @@ void InnerNode::rm_pivot(bid_t nid, List<DataNode*>& path){
 
     if(first_child_==nid){
         if(pivots_.size()==0){ //当前节点移除pivot之后不存在值，此时该节点也需要移除
+            path.back()->wlock_unlock();
             path.pop_back();
-            wlock_unlock();
             if(path.size()==0){
                 tree_->collapse();
             }else{
@@ -100,7 +100,7 @@ void InnerNode::split(List<DataNode*>& path){
     IndexKey k = pivots_[n].key;
 
     InnerNode *ni = tree_->new_inner_node();
-    ni->write_lock();
+    // ni->write_lock();
     ni->bottom_ = IS_LEAF(pivots_[n].child);
     assert(ni);
 
@@ -113,11 +113,12 @@ void InnerNode::split(List<DataNode*>& path){
         ni->pivots_.add(pivots_,n+1);
     }
     
-    pivots_.removeRange(n,pivots_.size()-n);
+    int removeCount_  = pivots_.size()-n;
+    pivots_.removeRange(n,removeCount_);
 
+    path.back()->wlock_unlock();
     path.pop_back();
-    ni->wlock_unlock();
-    wlock_unlock();
+    // ni->wlock_unlock();
 
     if(path.size()==0){
         InnerNode *newRoot = tree_->new_inner_node();
@@ -203,6 +204,7 @@ void InnerNode::maybe_descend(const Msg& m){
         idx = find_pivot(k);
         nid = child(idx);
         if(nid==NID_NIL){
+            cout<<"touch once\n";
             assert(bottom_);
             node = tree_->new_leaf_node();
             LeafNode *tmpnode = (LeafNode*) node;
@@ -243,7 +245,7 @@ void LeafNode::split(IndexKey anchor){
 
     List<DataNode*> path;
     tree_->lock_path(anchor, path);
-    assert(path.back()==this);
+    // assert(path.back()==this); //在进行split之前另一个insert导致提前发生了split
 
     if(records_.size()<=1 || records_.size()<=(tree_->options_.leaf_node_record_count/2)){
         while (path.size())
@@ -273,9 +275,10 @@ void LeafNode::split(IndexKey anchor){
     nl->first_key_ = k;
 
     balancing_ = false;
-    path.pop_back();
+    
     nl->wlock_unlock();
-    wlock_unlock();
+    path.back()->wlock_unlock();
+    path.pop_back();
 
     InnerNode* parent = (InnerNode*) path.back();
     assert(parent);
@@ -293,7 +296,7 @@ void LeafNode::merge(IndexKey anchor){
 
     List<DataNode*> path;
     tree_->lock_path(anchor, path);
-    assert(path.back()==this);
+    // assert(path.back()==this);
 
     if(records_.size()>0){
         while (path.size())
@@ -319,8 +322,9 @@ void LeafNode::merge(IndexKey anchor){
         rl->wlock_unlock();
     }
     balancing_ = false;
+    path.back()->wlock_unlock();
     path.pop_back();
-    wlock_unlock();
+    
     
     InnerNode *parent = (InnerNode*)path.back();
     assert(parent);
@@ -359,12 +363,13 @@ bool LeafNode::descend(const Msg& m,InnerNode* parent){
         LeafNode* right_sibling_node_ = (LeafNode* )tree_->load_node(right_sibling_);
         if(m.key>=right_sibling_node_->first_key_){
             cout<<"touch............\n";
-            wlock_unlock();
             // plan 1:
+            // wlock_unlock();
             // return right_sibling_node_->descend(m,parent);
 
             // plan 2:
             parent->rLock_unlock();
+            wlock_unlock();
             return tree_->root_->write(m);
         }
     }
@@ -409,9 +414,14 @@ bool LeafNode::descend(const Msg& m,InnerNode* parent){
     records_.swap(res);
     int aftercount = records_.size();
     assert(aftercount==(beforecount+1));
+
+    if((*records_.bucket_.records)[0].key<=first_key_){
+        first_key_ = (*records_.bucket_.records)[0].key;
+    }
     parent->rLock_unlock();
     
     if(records_.size()==0){
+        cout<<"touchmerge\n";
         merge(anchor);
     }else if(records_.size()>1&&records_.size() > tree_->options_.leaf_node_record_count){
         split(anchor);

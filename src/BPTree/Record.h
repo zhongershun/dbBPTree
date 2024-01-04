@@ -73,10 +73,11 @@ public:
     };
 
     RecordBucket():
-    length_(0),size_(0){bucket_.records = new Records;}
+    length_(0),size_(0){bucket_.records = new Records();}
 
     ~RecordBucket(){ //有问题
         // delete bucket_.records;
+        bucket_.records = NULL;
     };
     
     size_t bucket_length(){ // 实际返回存储的records占据的大小

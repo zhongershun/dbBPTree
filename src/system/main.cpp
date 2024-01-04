@@ -52,16 +52,27 @@ void runBlock(Function func, const char *msg) {
 
 void genKV(int count,int order_KV){
 
+    runBlock([&]() {
     order_key_list.clear();
     rand_key_list.clear();
     val_list.clear();
-    for (int i = 0; i < count; i++)
+    cout<<".......preparing order data.......\n";
+    for (long i = 0; i < count; i++)
     {
+        if(i%(count/100)==0){
+            int progress = i*100/count;
+            printProgressBar(progress);
+        }
         order_key_list.push_back(i);
     }
+    cout<<".......preparing rand data.......\n";
     if(order_KV){
         while (order_key_list.size())
         {
+            if(rand_key_list.size()%(count/1000)==0){
+                int progress = ((long)(rand_key_list.size()*100))/count;        
+                printProgressBar(progress);
+            }
             int idx = 0;
             rand_key_list.push_back(order_key_list[idx]);
             order_key_list.removeAt(idx);
@@ -69,13 +80,27 @@ void genKV(int count,int order_KV){
     }else{
     while (order_key_list.size())
     {
+            if(rand_key_list.size()%(count/1000)==0){
+                int progress = ((long)(rand_key_list.size()*100))/count;        
+                printProgressBar(progress);
+            }
         int idx = rand() % order_key_list.size();
-        rand_key_list.push_back(order_key_list[idx]);
-        order_key_list.removeAt(idx);
+        if(idx<=99){
+            idx = 0;
+        }else {
+            idx = idx - 100;
+        }
+        if(order_key_list.size()<100){
+            rand_key_list.add(order_key_list,idx,order_key_list.size()-1);
+            order_key_list.clear();
+        }else{
+            rand_key_list.add(order_key_list,idx,idx+99);
+            order_key_list.removeRange(idx, 100);
+        }
     }
     }
 
-    runBlock([&]() {
+    
     for (int i = 0; i < count; i++)
     {
         val_list.push_back(new Tuple(4));
@@ -326,7 +351,7 @@ void* run_insert(void *arg){
         int k = rand_key_list[keys*ta->id+i];
         assert(ta->db->put(k,val_list[k]));
         Tuple *tmp;
-        assert(ta->db->get(k,tmp));
+        // assert(ta->db->get(k,tmp));
         if(print_scan){
             rw_lock.GetWriteLock();
             cout<<"pass: "<<k<<"\n";

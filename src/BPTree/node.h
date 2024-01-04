@@ -8,7 +8,7 @@
 #include "Record.h"
 #include "List.hpp"
 // #include <pthread.h>
-// #include <mutex>
+#include <mutex>
 
 using namespace std;
 
@@ -214,7 +214,7 @@ public:
     balancing_(false),
     left_sibling_(NID_NIL),
     right_sibling_(NID_NIL),
-    first_key_(0){}
+    first_key_(-1){}
     
     ~LeafNode();
     
