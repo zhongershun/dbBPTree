@@ -23,6 +23,7 @@ using namespace std;
 DBrwLock rw_lock;
 
 int count_;
+int print_scan = 0;
 
 List<Tuple*> val_list;
 List<int> order_key_list;
@@ -49,7 +50,7 @@ void runBlock(Function func, const char *msg) {
     printf("%s use: %f ms\n", msg, 1000.0 * (end - start) / CLOCKS_PER_SEC);
 }
 
-void genKV(int count){
+void genKV(int count,int order_KV){
 
     order_key_list.clear();
     rand_key_list.clear();
@@ -58,11 +59,20 @@ void genKV(int count){
     {
         order_key_list.push_back(i);
     }
+    if(order_KV){
+        while (order_key_list.size())
+        {
+            int idx = 0;
+            rand_key_list.push_back(order_key_list[idx]);
+            order_key_list.removeAt(idx);
+        }
+    }else{
     while (order_key_list.size())
     {
         int idx = rand() % order_key_list.size();
         rand_key_list.push_back(order_key_list[idx]);
         order_key_list.removeAt(idx);
+    }
     }
 
     runBlock([&]() {
@@ -255,7 +265,7 @@ void db_test(){
     //     //     }
     // }
     // },"preparing data");
-    genKV(tuple_count);
+    genKV(tuple_count,0);
 
     runBlock([&]() {
     for (long i = 0; i < tuple_count; i++)
@@ -317,9 +327,11 @@ void* run_insert(void *arg){
         assert(ta->db->put(k,val_list[k]));
         Tuple *tmp;
         assert(ta->db->get(k,tmp));
-        rw_lock.GetWriteLock();
-        cout<<"pass: "<<k<<"\n";
-        rw_lock.ReleaseWriteLock();
+        if(print_scan){
+            rw_lock.GetWriteLock();
+            cout<<"pass: "<<k<<"\n";
+            rw_lock.ReleaseWriteLock();
+        }
     }
 }
 
@@ -347,7 +359,7 @@ void* run_delete(void *arg){
 
 }
 
-void db_pthread_test(int thread_num, int test_count){
+void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV){
     thread_args ta;
     ta.count = test_count;
     ta.thread_num = thread_num;
@@ -368,13 +380,15 @@ void db_pthread_test(int thread_num, int test_count){
     ta.db = DB::open(table_id,opts);
     assert(ta.db);
 
-    genKV(test_count);
+    genKV(test_count,order_KV);
 
-    for (int i = 0; i < rand_key_list.size(); i++)
-    {
-        cout<<rand_key_list[i]<<" ";
+    if(print_scan){
+        for (int i = 0; i < rand_key_list.size(); i++)
+        {
+            cout<<rand_key_list[i]<<" ";
+        }
+        cout<<"\n";
     }
-    cout<<"\n";
     
     pthread_t ids[thread_num];
 
@@ -399,8 +413,10 @@ void db_pthread_test(int thread_num, int test_count){
 
     cout<<"-- write end --\n";
     
-    ta.db->scan();
-    cout<<"\n";
+    if(print_scan){
+        ta.db->scan();
+        cout<<"\n";
+    }
     cout<<"insert count: "<<ta.db->descendCount()<<"\n";
 
     cout<<"-- search start --\n";
@@ -426,7 +442,7 @@ void db_pthread_test(int thread_num, int test_count){
 }
 
 void test_genKV(int count){
-    genKV(count);
+    genKV(count,0);
     for (int i = 0; i < count; i++)
     {
         cout<<rand_key_list[i]<<" ";
@@ -443,6 +459,13 @@ int main(int argc,char **argv){
 
     int thread_num = atoi(argv[1]);
     int test_count = atoi(argv[2]);
+    int order_KV = 0;
+    if(argc>=4){
+        order_KV = atoi(argv[3]);
+    }
+    if(argc>=5){
+        print_scan = atoi(argv[4]);
+    }
     // test_genKV(test_count);
-    db_pthread_test(thread_num,test_count);
+    db_pthread_test(thread_num,test_count,print_scan,order_KV);
 }
