@@ -16,6 +16,8 @@ public:
 
     virtual bool get(IndexKey key, Tuple*& value) = 0;
 
+    virtual bool rangeGet(IndexKey startKey, IndexKey endKey, List<Tuple*>& values) = 0;
+    
     // inline bool get(IndexKey key, Tuple*& value)
     // {
     //     Tuple* v;
@@ -28,6 +30,8 @@ public:
     virtual void scan() = 0;
 
     virtual int descendCount()=0;
+
+    virtual int treeHeight()=0;
 };
 
 class Tree;
@@ -53,6 +57,12 @@ public:
     void scan(){
         tree_->scan();
     };
+
+    bool rangeGet(IndexKey startKey, IndexKey endKey, List<Tuple*>& values);
+
+    int treeHeight(){
+        return tree_->treeHeight();
+    }
 
     int descendCount(){
         return tree_->global_count_;

@@ -18,16 +18,22 @@
 
 #include <cmath>
 
+#include <random>
+#include <chrono>
+
 using namespace std;
 
 DBrwLock rw_lock;
 
 int count_;
 int print_scan = 0;
+int tupleSize = 128; // x Bytes
 
 List<Tuple*> val_list;
-List<int> order_key_list;
-List<int> rand_key_list;
+// List<int> order_key_list;
+// List<int> rand_key_list;
+vector<int> order_key_list;
+vector<int> rand_key_list;
 
 void printProgressBar(int progress) {
     int barWidth = 70;
@@ -44,18 +50,24 @@ void printProgressBar(int progress) {
 
 template<class Function>
 void runBlock(Function func, const char *msg) {
-    clock_t start = clock();
+    // clock_t start = clock();
+    auto start = std::chrono::high_resolution_clock::now();
     func();
-    clock_t end = clock();
-    printf("%s use: %f ms\n", msg, 1000.0 * (end - start) / CLOCKS_PER_SEC);
+    // clock_t end = clock();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    // printf("%s use: %f ms\n", msg, (1000.0 * (end - start)) / CLOCKS_PER_SEC);
+    printf("%s use: %f ms\n", msg, (1000.0*duration.count())/(1000.0*1000.0));
 }
 
-void genKV(int count,int order_KV){
-
+void genKV(int count, int order_KV){
     runBlock([&]() {
     order_key_list.clear();
     rand_key_list.clear();
     val_list.clear();
+    order_key_list.reserve(count);
+    rand_key_list.reserve(count);
+    val_list.reserve(count);
     cout<<".......preparing order data.......\n";
     for (long i = 0; i < count; i++)
     {
@@ -65,51 +77,140 @@ void genKV(int count,int order_KV){
         }
         order_key_list.push_back(i);
     }
+    cout<<".......preparing order data finished.......\n\n";
     cout<<".......preparing rand data.......\n";
     if(order_KV){
-        while (order_key_list.size())
-        {
-            if(rand_key_list.size()%(count/1000)==0){
-                int progress = ((long)(rand_key_list.size()*100))/count;        
-                printProgressBar(progress);
-            }
-            int idx = 0;
-            rand_key_list.push_back(order_key_list[idx]);
-            order_key_list.removeAt(idx);
-        }
+        rand_key_list.swap(order_key_list);
+        // rand_key_list.add(order_key_list);
+        
+        // while (order_key_list.size())
+        // {
+        //     if(rand_key_list.size()%(count/1000)==0){
+        //         int progress = ((long)(rand_key_list.size()*100))/count;        
+        //         printProgressBar(progress);
+        //     }
+        //     int idx = 0;
+        //     rand_key_list.push_back(order_key_list[idx]);
+        //     order_key_list.removeAt(idx);
+        // }
     }else{
-    while (order_key_list.size())
+        shuffle(order_key_list.begin(),order_key_list.end(),default_random_engine(time(NULL)));
+        rand_key_list.swap(order_key_list);
+    }
+    for (int i = 0; i < count; i++)
     {
-            if(rand_key_list.size()%(count/1000)==0){
-                int progress = ((long)(rand_key_list.size()*100))/count;        
-                printProgressBar(progress);
-            }
-        int idx = rand() % order_key_list.size();
-        if(idx<=99){
-            idx = 0;
-        }else {
-            idx = idx - 100;
-        }
-        if(order_key_list.size()<100){
-            rand_key_list.add(order_key_list,idx,order_key_list.size()-1);
-            order_key_list.clear();
-        }else{
-            rand_key_list.add(order_key_list,idx,idx+99);
-            order_key_list.removeRange(idx, 100);
-        }
+        val_list.push_back(new Tuple(tupleSize));
     }
-    }
+    },"preparing data");
+    cout<<".......preparing rand data finished.......\n\n";
+}
 
+// void genKV(int count,int order_KV){
+
+//     runBlock([&]() {
+//     order_key_list.clear();
+//     rand_key_list.clear();
+//     val_list.clear();
+//     order_key_list.reserve(count);
+//     rand_key_list.reserve(count);
+//     val_list.reserve(count);
+//     cout<<".......preparing order data.......\n";
+//     for (long i = 0; i < count; i++)
+//     {
+//         if(i%(count/100)==0){
+//             int progress = i*100/count;
+//             printProgressBar(progress);
+//         }
+//         order_key_list.push_back(i);
+//     }
+//     cout<<".......preparing rand data.......\n";
+//     if(order_KV){
+//         rand_key_list.add(order_key_list);
+//         // while (order_key_list.size())
+//         // {
+//         //     if(rand_key_list.size()%(count/1000)==0){
+//         //         int progress = ((long)(rand_key_list.size()*100))/count;        
+//         //         printProgressBar(progress);
+//         //     }
+//         //     int idx = 0;
+//         //     rand_key_list.push_back(order_key_list[idx]);
+//         //     order_key_list.removeAt(idx);
+//         // }
+//     }else{
+//     while (order_key_list.size())
+//     {
+//             if(rand_key_list.size()%(count/1000)==0){
+//                 int progress = ((long)(rand_key_list.size()*100))/count;        
+//                 printProgressBar(progress);
+//             }
+//         int idx = rand() % order_key_list.size();
+//         if(idx<=99){
+//             idx = 0;
+//         }else {
+//             idx = idx - 100;
+//         }
+//         if(order_key_list.size()<100){
+//             rand_key_list.add(order_key_list,idx,order_key_list.size()-1);
+//             order_key_list.clear();
+//         }else{
+//             rand_key_list.add(order_key_list,idx,idx+99);
+//             order_key_list.removeRange(idx, 100);
+//         }
+//     }
+//     }
+
+    
+//     for (int i = 0; i < count; i++)
+//     {
+//         val_list.push_back(new Tuple(tupleSize));
+//     }
+//     },"preparing data");
+    
+// }
+
+void list_test(){
+    int count = 10;
+    // genKV(count,1);
+    vector<int> testList;
+    for (int i = 0; i < count; i++)
+    {
+        testList.push_back(i);
+    }
     
     for (int i = 0; i < count; i++)
     {
-        val_list.push_back(new Tuple(4));
+        cout<<testList[i]<<" ";
     }
-    },"preparing data");
-    
+    // for (int i = 0; i < count; i++)
+    // {
+    //     if(i%1000==0){
+    //         cout<<rand_key_list[i]<<" ";
+    //     }
+    // }
+    cout<<"\n";
+    for (auto it = testList.begin();it!=testList.end();++it)
+    {
+        // if(*it%1000==0){
+            cout<<*it<<" ";
+        // }
+    }
+    // for (auto it = rand_key_list.begin();it!=rand_key_list.end();++it)
+    // {
+    //     if(*it%1000==0){
+    //         cout<<*it<<" ";
+    //     }
+    // }
+    cout<<"\n";
+
+    shuffle(testList.begin(),testList.end(),default_random_engine(time(NULL)));
+    for (auto it = testList.begin();it!=testList.end();++it)
+    {
+        // if(*it%1000==0){
+            cout<<*it<<" ";
+        // }
+    }
+    cout<<"\n";
 }
-
-
 
 void record_test(){
     // int count = atoi(argv[1]);
@@ -348,7 +449,7 @@ void* run_insert(void *arg){
 
     for (int i = 0; i < keys; i++)
     {
-        int k = rand_key_list[keys*ta->id+i];
+        IndexKey k = rand_key_list[keys*ta->id+i];
         assert(ta->db->put(k,val_list[k]));
         Tuple *tmp;
         // assert(ta->db->get(k,tmp));
@@ -369,7 +470,7 @@ void* run_search(void *arg){
     for (int i = 0; i < keys; i++)
     {
         Tuple* val;
-        int k = rand_key_list[keys*ta->id+i];
+        IndexKey k = rand_key_list[keys*ta->id+i];
         // if(!ta->db->get(k,val)){
         //     // cout<<"touch\n";
         //     rw_lock.GetReadLock();
@@ -380,11 +481,54 @@ void* run_search(void *arg){
     }
 }
 
-void* run_delete(void *arg){
+void* run_rangeSearch(void *arg){
+    thread_args *ta = (thread_args*) arg;
+    int count = ta->count; // 总的Tuple数量
+    int keys = count/ta->thread_num; // 每个线程负责的Tuple数量
+    IndexKey rangePerThread = 10;
+    IndexKey startKey = keys*ta->id;
+    IndexKey endKey = startKey+rangePerThread-1;
+    //[ startKey, endKey );
+    List<Tuple*> vals;
+    // cout<<"endKey edge : "<<keys*(ta->id+1)<<"\n";
+    while (endKey<keys*(ta->id+1))
+    {
+        ta->db->rangeGet(startKey,endKey,vals);
+        // cout<<"startKey : \t"<<startKey<<"\n";
+        // cout<<"endKey : \t"<<endKey<<"\n";
+        // cout<<"rangeSearch : \t"<<vals.size()<<"\n\n";
+        startKey+=rangePerThread;
+        endKey+=rangePerThread;
+        
+    }
+    // cout<<"range search keys : "<<vals.size()<<"\n";
+    assert(vals.size()==keys);
+}
 
+void* run_delete(void *arg){
+    thread_args *ta = (thread_args*) arg;
+
+    int count = ta->count; // 总的Tuple数量
+    int keys = count/ta->thread_num; // 每个线程插入的Tuple数量
+
+    for (int i = 0; i < keys; i++)
+    {
+        Tuple* val;
+        IndexKey k = rand_key_list[keys*ta->id+i];
+        // if(!ta->db->get(k,val)){
+        //     // cout<<"touch\n";
+        //     rw_lock.GetReadLock();
+        //     rw_lock.GetWriteLock();
+        // }
+        assert(ta->db->del(k));
+        // assert(val==val_list[k]);
+    }
 }
 
 void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV){
+    // runBlock([&](){
+    //     sleep(10);
+    // },"test runBlock");
     thread_args ta;
     ta.count = test_count;
     ta.thread_num = thread_num;
@@ -394,7 +538,7 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     {
         order = order<<1;
     }
-    cout<<"order: "<<order<<"\n";
+    cout<<"order: "<<order<<"\n\n";
 
     Options opts;
     
@@ -436,7 +580,11 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     }
     },"tree insert");
 
-    cout<<"-- write end --\n";
+    cout<<"-- write end --\n\n";
+
+    int treeHeight = ta.db->treeHeight();
+
+    assert(treeHeight!=0);
     
     if(print_scan){
         ta.db->scan();
@@ -461,16 +609,76 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
         assert(pthread_join(ids[i],(void**)&t)==0);
         // delete t;
     }
-    },"tree insert");
+    },"tree search");
 
-    cout<<"-- search end --\n";
+    cout<<"-- search end --\n\n";
+
+    // cout<<"-- rangeSearch start --\n";
+
+    // runBlock([&]() {
+    // for (auto i = 0; i < thread_num; i++)
+    // {
+    //     thread_args *t = new thread_args;
+    //     *t = ta;
+    //     t->id = i;
+    //     assert(pthread_create(&ids[i],0,run_rangeSearch,(void*)t)==0);
+    // }
+
+    // for (auto i = 0; i < thread_num; i++)
+    // {
+    //     thread_args *t;
+    //     assert(pthread_join(ids[i],(void**)&t)==0);
+    //     // delete t;
+    // }
+    // },"tree rangeSearch");
+
+    // cout<<"-- rangeSearch end --\n\n";
+
+    cout<<"-- delete start --\n";
+
+    runBlock([&]() {
+    for (auto i = 0; i < thread_num; i++)
+    {
+        thread_args *t = new thread_args;
+        *t = ta;
+        t->id = i;
+        assert(pthread_create(&ids[i],0,run_delete,(void*)t)==0);
+    }
+
+    for (auto i = 0; i < thread_num; i++)
+    {
+        thread_args *t;
+        assert(pthread_join(ids[i],(void**)&t)==0);
+        // delete t;
+    }
+    },"tree delete");
+
+    cout<<"-- delete end --\n\n";
+
+    cout<<"\ntest finish\n";
+    cout<<"thread count:\t"<<thread_num<<"\n";
+    cout<<"data count:\t"<<test_count<<"\n\n";
+    cout<<"tree height:\t"<<treeHeight<<"\n\n";
+    cout<<"key type:\t"<<"IndexKey(uint64_t) = 8 Bytes"<<"\n";
+    cout<<"key size:\t"<<test_count*8<<" Bytes\n\n";
+    cout<<"value type:\t"<<"Tuple("<<tupleSize<<") = "<<tupleSize<<" Bytes"<<"\n";
+    cout<<"value size:\t"<<test_count<<" Bytes\n\n";
+    cout<<"data size:\t"<<test_count*sizeof(IndexKey)+test_count*tupleSize<<" Bytes\n\n";
+    if(order_KV){
+        cout<<"key order:\t"<<"order\n";
+    }else{
+        cout<<"key order:\t"<<"random\n";
+    }
+
 }
 
 void test_genKV(int count){
     genKV(count,0);
     for (int i = 0; i < count; i++)
     {
-        cout<<rand_key_list[i]<<" ";
+        if(i%100000==0){
+            cout<<rand_key_list[i]<<" ";
+        }
     }
     cout<<"\n";
 }
@@ -481,6 +689,12 @@ int main(int argc,char **argv){
     // nodePool_test();
     // msg_test();
     // db_test();
+    // list_test();
+    // return 0;
+    if(argc==1){
+        cout<<"help\n./BPTREE_IMPL\tthread_num\ttest_count\torder_KV(default: 0; 0: inorder; 1: order)\tprint_scan(default: 0)\n";
+        return 0;
+    }else{
 
     int thread_num = atoi(argv[1]);
     int test_count = atoi(argv[2]);
@@ -493,4 +707,5 @@ int main(int argc,char **argv){
     }
     // test_genKV(test_count);
     db_pthread_test(thread_num,test_count,print_scan,order_KV);
+    }
 }

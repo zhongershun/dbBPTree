@@ -58,6 +58,23 @@ bool Tree::get(IndexKey key, Tuple*&value){
     return ret;
 }
 
+// [startKey, endKey]
+bool Tree::rangeGet(IndexKey startKey, IndexKey endKey, List<Tuple*>& values){
+    assert(root_);
+    InnerNode *root = root_;
+    root->rangeFind(startKey, endKey, values, NULL);
+    // cout<<"touch.........\n";
+    // cout<<"range search keys : "<<values.size()<<"\n\n\n";
+    bool ret = values.size();
+    return ret;
+}
+
+int Tree::treeHeight(){
+    assert(root_);
+    InnerNode *root = root_;
+    return root->treeHeight();
+}
+
 InnerNode* Tree::new_inner_node(){
     schema_->write_lock();
 

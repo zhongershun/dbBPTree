@@ -35,6 +35,9 @@ bool DBImpl::get(IndexKey key, Tuple*& value)
     return tree_->get(key, value);
 }
 
+bool DBImpl::rangeGet(IndexKey startKey, IndexKey endKey, List<Tuple*>& values){
+    tree_->rangeGet(startKey,endKey,values);
+}
 
 DB* DB::open(const TableID& table_id, const Options& options){
     DBImpl* db = new DBImpl(table_id, options);

@@ -126,7 +126,11 @@ public:
 
     virtual bool descend(const Msg& mb, InnerNode* parent) = 0;
 
+    virtual void rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent) = 0;
+
     virtual void scan()=0;
+
+    virtual int treeHeight()=0;
 
 protected:
     Tree *tree_;
@@ -179,7 +183,11 @@ public:
 
     bool descend(const Msg& m, InnerNode* parent);
 
+    virtual void rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent);
+
     void scan();
+
+    int treeHeight();
 
 protected:
     friend class LeafNode;
@@ -214,7 +222,9 @@ public:
     balancing_(false),
     left_sibling_(NID_NIL),
     right_sibling_(NID_NIL),
-    first_key_(-1){}
+    first_key_(-1),
+    min_(-1),
+    max_(-1){}
     
     ~LeafNode();
     
@@ -224,7 +234,11 @@ public:
 
     bool descend(const Msg& m,InnerNode* parent);
 
+    virtual void rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent);
+
     void scan();
+
+    int treeHeight();
 
     IndexKey                first_key_;
     
@@ -242,6 +256,10 @@ private:
     bid_t                   right_sibling_;
 
     RecordBucket            records_;
+
+    // 0xffff ffff ffff ffff
+    IndexKey                min_;
+    IndexKey                max_;
 };
 
 #endif

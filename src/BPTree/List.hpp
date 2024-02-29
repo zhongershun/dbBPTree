@@ -43,6 +43,78 @@ public:
     
     ~List();
 
+    class Iterator{
+        public:
+
+        using difference_type = std::ptrdiff_t; // Standard definition
+        using value_type = T;                    // Type of elements
+        using pointer = T*;                      // Pointer to type
+        using reference = T&;                    // Reference to type
+        using iterator_category = std::forward_iterator_tag; // Iterator category
+
+        Iterator(List* container, int count):
+        container_(container),
+        list_idx_(count){};
+
+        bool valid(){
+            return list_idx_ != container_->size();
+        }
+
+        Iterator& operator=(const Iterator& it){
+            container_ = it.container_;
+            list_idx_ = it.list_idx_;
+        }
+
+        bool operator==(const Iterator& it) const{
+            return list_idx_==it.list_idx_;
+        }
+
+        bool operator!=(const Iterator& it) const{
+            return list_idx_!=it.list_idx_;
+        }
+
+        Iterator& operator+(const int n){
+            list_idx_+n;
+            return *this;    
+        }
+
+        Iterator& operator-(const int n){
+            list_idx_-n;
+            return *this;    
+        }
+
+        Iterator& operator++(){
+            list_idx_++;
+            return *this;
+        }
+
+        Iterator& operator ++(int){
+            Iterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        Iterator& operator--(){
+            list_idx_--;
+            return *this;
+        }
+
+        Iterator& operator --(int){
+            Iterator tmp = *this;
+            --(*this);
+            return tmp;
+        }
+
+        T& operator*(){
+            return (*container_)[list_idx_];
+        }
+        
+        private:
+        List* container_;
+        int list_idx_;
+    };
+
+
     // 设置idx处值set(idx,&val);
     void set(uint32_t index, const T &value);
 
@@ -135,6 +207,14 @@ public:
         int idx = size_-1;
         removeAt(idx);
         return;
+    }
+
+    Iterator begin(){
+        return Iterator(this, 0);
+    }
+
+    Iterator end(){
+        return Iterator(this, size());
     }
 };
 

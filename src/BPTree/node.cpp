@@ -175,6 +175,24 @@ bool InnerNode::find(IndexKey key, Tuple*& value, InnerNode* parent){
     return ret;
 }
 
+void InnerNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent){
+    read_lock();
+    if(parent){
+        parent->rLock_unlock();
+    }
+    int idx = find_pivot(startKey);
+    bid_t chidx = child(idx);
+    if(chidx==NID_NIL){
+        assert(idx==0);
+        rLock_unlock();
+        return;
+    }
+    DataNode* ch = tree_->load_node(chidx);
+    assert(ch);
+    ch->rangeFind(startKey,endKey,values,this);
+    return;
+}
+
 void InnerNode::lock_path(IndexKey key, List<DataNode*>& path){
     int idx = find_pivot(key);
     // assert(idx>=0&&idx<pivots_.size());
@@ -207,8 +225,8 @@ void InnerNode::maybe_descend(const Msg& m){
             cout<<"touch once\n";
             assert(bottom_);
             node = tree_->new_leaf_node();
-            LeafNode *tmpnode = (LeafNode*) node;
-            tmpnode->first_key_ = m.key;
+            // LeafNode *tmpnode = (LeafNode*) node;
+            // tmpnode->first_key_ = m.key;
             set_child(idx,node->nid());
         }else{
             node = tree_->load_node(nid);
@@ -246,6 +264,15 @@ void LeafNode::split(IndexKey anchor){
     List<DataNode*> path;
     tree_->lock_path(anchor, path);
     // assert(path.back()==this); //在进行split之前另一个insert导致提前发生了split
+    if(path.back()->nid() != nid_){ // 在重新锁住之前没有提前发生其他的split
+        while (path.size())
+        {
+            path.back()->wlock_unlock();
+            path.pop_back();
+        }
+        balancing_ = false;
+        return;
+    }
 
     if(records_.size()<=1 || records_.size()<=(tree_->options_.leaf_node_record_count/2)){
         while (path.size())
@@ -253,6 +280,7 @@ void LeafNode::split(IndexKey anchor){
             path.back()->wlock_unlock();
             path.pop_back();
         }
+        balancing_ = false;
         return;
     }
 
@@ -273,6 +301,9 @@ void LeafNode::split(IndexKey anchor){
 
     IndexKey k = records_.split(nl->records_);
     nl->first_key_ = k;
+    nl->min_ = k;
+    nl->max_ = max_;
+    max_ = (*records_.bucket_.records)[records_.size()-1].key;
 
     balancing_ = false;
     
@@ -298,12 +329,23 @@ void LeafNode::merge(IndexKey anchor){
     tree_->lock_path(anchor, path);
     // assert(path.back()==this);
 
+    if(path.back()->nid()!=nid_){
+        while (path.size())
+        {
+            path.back()->wlock_unlock();
+            path.pop_back();
+        }
+        balancing_ = false;
+        return;
+    }
+
     if(records_.size()>0){
         while (path.size())
         {
             path.back()->wlock_unlock();
             path.pop_back();
         }
+        balancing_ = false;
         return;
     }
 
@@ -353,6 +395,131 @@ bool LeafNode::find(IndexKey key, Tuple*& value, InnerNode* parent){
     return ret;
 }
 
+void LeafNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent){
+    assert(parent);
+    read_lock();
+
+    //原则上只往右遍历leafnode
+    
+    // case 1 : startKey>= min_, endKey<=max_
+    //      [------]
+    //        [  ]
+
+    // case 2 : startKey<min_, endKey>max_
+    //      [------]
+    //     [        ]
+
+    // case 3 : startKey>=min_, endKey>max_
+    //      [------]
+    //          [   ]
+
+    // case 4 : startKey<min_, endKey<max_
+    //      [------]
+    //     [   ]
+
+    // case 5 : startKey>max_
+    //      [------]
+    //              [   ]
+
+    // case 6 : endKey<min_
+    //      [------]
+    // [   ]
+
+    if(startKey>=min_){
+        if(startKey>max_){ // case 5
+            if (right_sibling_!=NID_NIL)
+            {
+                DataNode *rs = tree_->load_node(right_sibling_);
+                rLock_unlock();
+                rs->rangeFind(startKey, endKey, values, parent);
+            }else{
+                rLock_unlock();
+                parent->rLock_unlock();
+            }
+            return;
+        }
+        if(endKey<=max_){ // case 1
+            int start_idx = records_.bucket_.records->binaryFind(Record(startKey,NULL));
+
+            int end_idx = records_.bucket_.records->binaryFind(Record(endKey,NULL));
+            if(start_idx>=records_.size()||end_idx>=records_.size()){
+                
+            }else{
+                for (int i = start_idx; i < end_idx; i++)
+                {
+                    values.push_back((*(records_.bucket_.records))[i].value);
+                }
+                if((*(records_.bucket_.records))[end_idx].key==endKey){
+                    values.push_back((*(records_.bucket_.records))[end_idx].value);
+                }
+            }
+            rLock_unlock();
+            parent->rLock_unlock();
+            return;
+        }
+        if(endKey>max_&&startKey<=max_){ // case 3
+            int start_idx = records_.bucket_.records->binaryFind(Record(startKey,NULL));
+            if(start_idx>=records_.size()){
+
+            }else{
+                for (int i = start_idx; i < records_.size(); i++)
+                {
+                    values.push_back((*(records_.bucket_.records))[i].value);
+                }
+            }
+            if (right_sibling_!=NID_NIL)
+            {
+                DataNode *rs = tree_->load_node(right_sibling_);
+                rLock_unlock();
+                rs->rangeFind(startKey, endKey, values, parent);
+            }else{
+                rLock_unlock();
+                parent->rLock_unlock();
+            }
+            return;
+        }
+    }else if(startKey<min_){
+        if(endKey<min_){ // case 6
+            rLock_unlock();
+            parent->rLock_unlock();
+            return;
+        }
+        if(endKey>max_){ // case 2
+            for (int i = 0; i < records_.size(); i++)
+            {
+                values.push_back((*(records_.bucket_.records))[i].value);
+            }
+            if (right_sibling_!=NID_NIL)
+            {
+                DataNode *rs = tree_->load_node(right_sibling_);
+                rLock_unlock();
+                rs->rangeFind(startKey, endKey, values, parent);
+            }else{
+                rLock_unlock();
+                parent->rLock_unlock();
+            }
+            return;
+        }
+        if(endKey<=max_&&endKey>=min_){ // case 4
+            int end_idx = records_.bucket_.records->binaryFind(Record(endKey,NULL));
+            if(end_idx>=records_.size()){
+
+            }else{
+                for (int i = 0; i < end_idx; i++)
+                {
+                    values.push_back((*(records_.bucket_.records))[i].value);
+                }
+                if((*(records_.bucket_.records))[end_idx].key==endKey){
+                    values.push_back((*(records_.bucket_.records))[end_idx].value);
+                }
+            }
+            rLock_unlock();
+            parent->rLock_unlock();
+            return;
+        }
+    }
+}
+
 bool LeafNode::descend(const Msg& m,InnerNode* parent){
     write_lock();
 
@@ -361,16 +528,21 @@ bool LeafNode::descend(const Msg& m,InnerNode* parent){
     if(right_sibling_!=NID_NIL){
         // cout<<"touch............\n";
         LeafNode* right_sibling_node_ = (LeafNode* )tree_->load_node(right_sibling_);
+        right_sibling_node_->read_lock();
         if(m.key>=right_sibling_node_->first_key_){
-            cout<<"touch............\n";
+            right_sibling_node_->rLock_unlock();
+            // cout<<"touch............\n";
             // plan 1:
-            // wlock_unlock();
-            // return right_sibling_node_->descend(m,parent);
+            wlock_unlock();
+            return right_sibling_node_->descend(m,parent);
 
             // plan 2:
-            parent->rLock_unlock();
-            wlock_unlock();
-            return tree_->root_->write(m);
+            // parent->rLock_unlock();
+            // wlock_unlock();
+            // // return tree_->root_->write(m);
+            // return tree_->put(m.key,m.value);
+        }else{
+            right_sibling_node_->rLock_unlock();
         }
     }
 
@@ -413,15 +585,24 @@ bool LeafNode::descend(const Msg& m,InnerNode* parent){
     }
     records_.swap(res);
     int aftercount = records_.size();
-    assert(aftercount==(beforecount+1));
+    // assert(aftercount==(beforecount+1));
 
-    if((*records_.bucket_.records)[0].key<=first_key_){
+    if(aftercount){
+        if((*records_.bucket_.records)[0].key<=first_key_){
         first_key_ = (*records_.bucket_.records)[0].key;
+        }
+        min_ = (*records_.bucket_.records)[0].key;
+        max_ = (*records_.bucket_.records)[records_.size()-1].key;
+    }else{
+        first_key_ = -1;
+        min_ = -1;
+        max_ = -1;
     }
+    
     parent->rLock_unlock();
     
     if(records_.size()==0){
-        cout<<"touchmerge\n";
+        // cout<<"touchmerge\n";
         merge(anchor);
     }else if(records_.size()>1&&records_.size() > tree_->options_.leaf_node_record_count){
         split(anchor);
@@ -455,4 +636,20 @@ void LeafNode::scan(){
     {
         cout<<(*records_.bucket_.records)[i].key<<" ";
     }
+    cout<<" ";
+}
+
+int InnerNode::treeHeight(){
+    if (first_child_!=NID_NIL)
+    {
+        bid_t chidx = first_child_;
+        DataNode *ch = tree_->load_node(chidx);
+        return 1+ch->treeHeight();
+    }else{
+        return 0;
+    }
+}
+
+int LeafNode::treeHeight(){
+    return 1;
 }

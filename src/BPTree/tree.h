@@ -37,6 +37,10 @@ public:
 
     bool get(IndexKey key, Tuple*& value);
 
+    bool rangeGet(IndexKey startKey, IndexKey endKey, List<Tuple*>& values);
+
+    int treeHeight();
+    
     // debug用
     void scan();
     
