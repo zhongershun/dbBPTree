@@ -246,6 +246,11 @@ bool InnerNode::descend(const Msg& m,InnerNode* parent){
     maybe_descend(m);
     return true;
 }
+
+void InnerNode::lock_range_leaf(IndexKey startKey, IndexKey endKey, List<DataNode*>& range){}
+
+void InnerNode::rangeScan(IndexKey startKey, IndexKey endKey, List<Tuple*>& values){}
+
 // ...... LeafNode ...... //
 
 LeafNode::~LeafNode(){
@@ -395,10 +400,20 @@ bool LeafNode::find(IndexKey key, Tuple*& value, InnerNode* parent){
     return ret;
 }
 
-void LeafNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent){
-    assert(parent);
-    read_lock();
+void LeafNode::lock_range_leaf(IndexKey startKey, IndexKey endKey, List<DataNode*>& range){
+    if(min_<=endKey){
+        read_lock();
+        range.push_back(this);
+        if(right_sibling_!=NID_NIL){
+            DataNode* rl = tree_->load_node(right_sibling_);
+            rl->lock_range_leaf(startKey,endKey,range);
+        }else{
+            return;
+        }
+    }
+}
 
+void LeafNode::rangeScan(IndexKey startKey, IndexKey endKey, List<Tuple*>& values){
     //原则上只往右遍历leafnode
     
     // case 1 : startKey>= min_, endKey<=max_
@@ -427,15 +442,15 @@ void LeafNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& value
 
     if(startKey>=min_){
         if(startKey>max_){ // case 5
-            if (right_sibling_!=NID_NIL)
-            {
-                DataNode *rs = tree_->load_node(right_sibling_);
-                rLock_unlock();
-                rs->rangeFind(startKey, endKey, values, parent);
-            }else{
-                rLock_unlock();
-                parent->rLock_unlock();
-            }
+            // if (right_sibling_!=NID_NIL)
+            // {
+            //     DataNode *rs = tree_->load_node(right_sibling_);
+            //     rLock_unlock();
+            //     rs->rangeFind(startKey, endKey, values, parent);
+            // }else{
+            //     rLock_unlock();
+            //     parent->rLock_unlock();
+            // }
             return;
         }
         if(endKey<=max_){ // case 1
@@ -453,8 +468,8 @@ void LeafNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& value
                     values.push_back((*(records_.bucket_.records))[end_idx].value);
                 }
             }
-            rLock_unlock();
-            parent->rLock_unlock();
+            // rLock_unlock();
+            // parent->rLock_unlock();
             return;
         }
         if(endKey>max_&&startKey<=max_){ // case 3
@@ -467,21 +482,21 @@ void LeafNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& value
                     values.push_back((*(records_.bucket_.records))[i].value);
                 }
             }
-            if (right_sibling_!=NID_NIL)
-            {
-                DataNode *rs = tree_->load_node(right_sibling_);
-                rLock_unlock();
-                rs->rangeFind(startKey, endKey, values, parent);
-            }else{
-                rLock_unlock();
-                parent->rLock_unlock();
-            }
+            // if (right_sibling_!=NID_NIL)
+            // {
+            //     DataNode *rs = tree_->load_node(right_sibling_);
+            //     rLock_unlock();
+            //     rs->rangeFind(startKey, endKey, values, parent);
+            // }else{
+            //     rLock_unlock();
+            //     parent->rLock_unlock();
+            // }
             return;
         }
     }else if(startKey<min_){
         if(endKey<min_){ // case 6
-            rLock_unlock();
-            parent->rLock_unlock();
+            // rLock_unlock();
+            // parent->rLock_unlock();
             return;
         }
         if(endKey>max_){ // case 2
@@ -489,15 +504,15 @@ void LeafNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& value
             {
                 values.push_back((*(records_.bucket_.records))[i].value);
             }
-            if (right_sibling_!=NID_NIL)
-            {
-                DataNode *rs = tree_->load_node(right_sibling_);
-                rLock_unlock();
-                rs->rangeFind(startKey, endKey, values, parent);
-            }else{
-                rLock_unlock();
-                parent->rLock_unlock();
-            }
+            // if (right_sibling_!=NID_NIL)
+            // {
+            //     DataNode *rs = tree_->load_node(right_sibling_);
+            //     rLock_unlock();
+            //     rs->rangeFind(startKey, endKey, values, parent);
+            // }else{
+            //     rLock_unlock();
+            //     parent->rLock_unlock();
+            // }
             return;
         }
         if(endKey<=max_&&endKey>=min_){ // case 4
@@ -513,12 +528,156 @@ void LeafNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& value
                     values.push_back((*(records_.bucket_.records))[end_idx].value);
                 }
             }
-            rLock_unlock();
-            parent->rLock_unlock();
+            // rLock_unlock();
+            // parent->rLock_unlock();
             return;
         }
     }
 }
+
+void LeafNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent){
+    assert(parent);
+    List<DataNode*> range;
+    range.clear();
+    lock_range_leaf(startKey, endKey, range);
+    if(range.size()==0){
+        return;
+    }
+    assert(range[0]==this);
+    while (range.size())
+    {
+        range.front()->rangeScan(startKey,endKey,values);
+        range.front()->rLock_unlock();
+        range.pop_front();
+    }
+    parent->rLock_unlock();
+}
+
+
+// void LeafNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent){
+//     assert(parent);
+//     read_lock();
+
+//     //原则上只往右遍历leafnode
+    
+//     // case 1 : startKey>= min_, endKey<=max_
+//     //      [------]
+//     //        [  ]
+
+//     // case 2 : startKey<min_, endKey>max_
+//     //      [------]
+//     //     [        ]
+
+//     // case 3 : startKey>=min_, endKey>max_
+//     //      [------]
+//     //          [   ]
+
+//     // case 4 : startKey<min_, endKey<max_
+//     //      [------]
+//     //     [   ]
+
+//     // case 5 : startKey>max_
+//     //      [------]
+//     //              [   ]
+
+//     // case 6 : endKey<min_
+//     //      [------]
+//     // [   ]
+
+//     if(startKey>=min_){
+//         if(startKey>max_){ // case 5
+//             if (right_sibling_!=NID_NIL)
+//             {
+//                 DataNode *rs = tree_->load_node(right_sibling_);
+//                 rLock_unlock();
+//                 rs->rangeFind(startKey, endKey, values, parent);
+//             }else{
+//                 rLock_unlock();
+//                 parent->rLock_unlock();
+//             }
+//             return;
+//         }
+//         if(endKey<=max_){ // case 1
+//             int start_idx = records_.bucket_.records->binaryFind(Record(startKey,NULL));
+
+//             int end_idx = records_.bucket_.records->binaryFind(Record(endKey,NULL));
+//             if(start_idx>=records_.size()||end_idx>=records_.size()){
+                
+//             }else{
+//                 for (int i = start_idx; i < end_idx; i++)
+//                 {
+//                     values.push_back((*(records_.bucket_.records))[i].value);
+//                 }
+//                 if((*(records_.bucket_.records))[end_idx].key==endKey){
+//                     values.push_back((*(records_.bucket_.records))[end_idx].value);
+//                 }
+//             }
+//             rLock_unlock();
+//             parent->rLock_unlock();
+//             return;
+//         }
+//         if(endKey>max_&&startKey<=max_){ // case 3
+//             int start_idx = records_.bucket_.records->binaryFind(Record(startKey,NULL));
+//             if(start_idx>=records_.size()){
+
+//             }else{
+//                 for (int i = start_idx; i < records_.size(); i++)
+//                 {
+//                     values.push_back((*(records_.bucket_.records))[i].value);
+//                 }
+//             }
+//             if (right_sibling_!=NID_NIL)
+//             {
+//                 DataNode *rs = tree_->load_node(right_sibling_);
+//                 rLock_unlock();
+//                 rs->rangeFind(startKey, endKey, values, parent);
+//             }else{
+//                 rLock_unlock();
+//                 parent->rLock_unlock();
+//             }
+//             return;
+//         }
+//     }else if(startKey<min_){
+//         if(endKey<min_){ // case 6
+//             rLock_unlock();
+//             parent->rLock_unlock();
+//             return;
+//         }
+//         if(endKey>max_){ // case 2
+//             for (int i = 0; i < records_.size(); i++)
+//             {
+//                 values.push_back((*(records_.bucket_.records))[i].value);
+//             }
+//             if (right_sibling_!=NID_NIL)
+//             {
+//                 DataNode *rs = tree_->load_node(right_sibling_);
+//                 rLock_unlock();
+//                 rs->rangeFind(startKey, endKey, values, parent);
+//             }else{
+//                 rLock_unlock();
+//                 parent->rLock_unlock();
+//             }
+//             return;
+//         }
+//         if(endKey<=max_&&endKey>=min_){ // case 4
+//             int end_idx = records_.bucket_.records->binaryFind(Record(endKey,NULL));
+//             if(end_idx>=records_.size()){
+
+//             }else{
+//                 for (int i = 0; i < end_idx; i++)
+//                 {
+//                     values.push_back((*(records_.bucket_.records))[i].value);
+//                 }
+//                 if((*(records_.bucket_.records))[end_idx].key==endKey){
+//                     values.push_back((*(records_.bucket_.records))[end_idx].value);
+//                 }
+//             }
+//             rLock_unlock();
+//             parent->rLock_unlock();
+//             return;
+//         }
+//     }
+// }
 
 bool LeafNode::descend(const Msg& m,InnerNode* parent){
     write_lock();
@@ -581,7 +740,9 @@ bool LeafNode::descend(const Msg& m,InnerNode* parent){
         jt.next();
     }
     if(!added){
-        res.push_back(keyRecord);
+        if(m.type_==Put){
+            res.push_back(keyRecord);
+        }
     }
     records_.swap(res);
     int aftercount = records_.size();

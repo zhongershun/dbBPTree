@@ -132,6 +132,10 @@ public:
 
     virtual int treeHeight()=0;
 
+    virtual void lock_range_leaf(IndexKey startKey, IndexKey endKey, List<DataNode*>& range) = 0;
+
+    virtual void rangeScan(IndexKey startKey, IndexKey endKey, List<Tuple*>& values) = 0;
+
 protected:
     Tree *tree_;
 };
@@ -183,11 +187,15 @@ public:
 
     bool descend(const Msg& m, InnerNode* parent);
 
-    virtual void rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent);
+    void rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent);
 
     void scan();
 
     int treeHeight();
+
+    void lock_range_leaf(IndexKey startKey, IndexKey endKey, List<DataNode*>& range);
+
+    void rangeScan(IndexKey startKey, IndexKey endKey, List<Tuple*>& values);
 
 protected:
     friend class LeafNode;
@@ -234,11 +242,15 @@ public:
 
     bool descend(const Msg& m,InnerNode* parent);
 
-    virtual void rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent);
+    void rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent);
 
     void scan();
 
     int treeHeight();
+
+    void lock_range_leaf(IndexKey startKey, IndexKey endKey, List<DataNode*>& range);
+
+    void rangeScan(IndexKey startKey, IndexKey endKey, List<Tuple*>& values);
 
     IndexKey                first_key_;
     

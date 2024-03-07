@@ -44,7 +44,7 @@ IndexKey RecordBucket::split(RecordBucket &other){
 
     assert(other.bucket_.records);
     assert(other.bucket_.records->size());
-    return other.bucket_.records->fount().key;
+    return other.bucket_.records->front().key;
     
 }
 

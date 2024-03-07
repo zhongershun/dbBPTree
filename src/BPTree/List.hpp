@@ -182,12 +182,12 @@ public:
         add(value);
     };
 
-    T &fount(){
+    T &front(){
         checkRange(0);
         return values[0];
     }
 
-    const T &fount() const{
+    const T &front() const{
         checkRange(0);
         return values[0];
     }
@@ -206,6 +206,13 @@ public:
         checkRange(0);
         int idx = size_-1;
         removeAt(idx);
+        return;
+    }
+
+    void pop_front(){
+        checkRange(0);
+        int idx = 0;
+        removeAt(0);
         return;
     }
 

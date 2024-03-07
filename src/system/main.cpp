@@ -12,6 +12,7 @@
 
 #include "db_impl.h"
 
+#include "ThreadPool.h"
 
 #include <ctime>
 #include <cstdarg>
@@ -27,13 +28,16 @@ DBrwLock rw_lock;
 
 int count_;
 int print_scan = 0;
-int tupleSize = 128; // x Bytes
+int tupleSize = 8; // x Bytes
+int tree_height_ = 3;
 
 List<Tuple*> val_list;
 // List<int> order_key_list;
 // List<int> rand_key_list;
 vector<int> order_key_list;
 vector<int> rand_key_list;
+
+List<int> added_key_list;
 
 void printProgressBar(int progress) {
     int barWidth = 70;
@@ -65,6 +69,7 @@ void genKV(int count, int order_KV){
     order_key_list.clear();
     rand_key_list.clear();
     val_list.clear();
+    added_key_list.clear();
     order_key_list.reserve(count);
     rand_key_list.reserve(count);
     val_list.reserve(count);
@@ -104,69 +109,6 @@ void genKV(int count, int order_KV){
     },"preparing data");
     cout<<".......preparing rand data finished.......\n\n";
 }
-
-// void genKV(int count,int order_KV){
-
-//     runBlock([&]() {
-//     order_key_list.clear();
-//     rand_key_list.clear();
-//     val_list.clear();
-//     order_key_list.reserve(count);
-//     rand_key_list.reserve(count);
-//     val_list.reserve(count);
-//     cout<<".......preparing order data.......\n";
-//     for (long i = 0; i < count; i++)
-//     {
-//         if(i%(count/100)==0){
-//             int progress = i*100/count;
-//             printProgressBar(progress);
-//         }
-//         order_key_list.push_back(i);
-//     }
-//     cout<<".......preparing rand data.......\n";
-//     if(order_KV){
-//         rand_key_list.add(order_key_list);
-//         // while (order_key_list.size())
-//         // {
-//         //     if(rand_key_list.size()%(count/1000)==0){
-//         //         int progress = ((long)(rand_key_list.size()*100))/count;        
-//         //         printProgressBar(progress);
-//         //     }
-//         //     int idx = 0;
-//         //     rand_key_list.push_back(order_key_list[idx]);
-//         //     order_key_list.removeAt(idx);
-//         // }
-//     }else{
-//     while (order_key_list.size())
-//     {
-//             if(rand_key_list.size()%(count/1000)==0){
-//                 int progress = ((long)(rand_key_list.size()*100))/count;        
-//                 printProgressBar(progress);
-//             }
-//         int idx = rand() % order_key_list.size();
-//         if(idx<=99){
-//             idx = 0;
-//         }else {
-//             idx = idx - 100;
-//         }
-//         if(order_key_list.size()<100){
-//             rand_key_list.add(order_key_list,idx,order_key_list.size()-1);
-//             order_key_list.clear();
-//         }else{
-//             rand_key_list.add(order_key_list,idx,idx+99);
-//             order_key_list.removeRange(idx, 100);
-//         }
-//     }
-//     }
-
-    
-//     for (int i = 0; i < count; i++)
-//     {
-//         val_list.push_back(new Tuple(tupleSize));
-//     }
-//     },"preparing data");
-    
-// }
 
 void list_test(){
     int count = 10;
@@ -369,10 +311,10 @@ void msg_test(){
 }
 
 void db_test(){
-    Options opts;
+    Options opts(8);
     
-    opts.inner_node_children_number = 8;
-    opts.leaf_node_record_count = 8;
+    // opts.inner_node_children_number = 8;
+    // opts.leaf_node_record_count = 8;
     
     TableID table_id = 0;
     DB *db = DB::open(table_id,opts);
@@ -488,8 +430,9 @@ void* run_rangeSearch(void *arg){
     IndexKey rangePerThread = 10;
     IndexKey startKey = keys*ta->id;
     IndexKey endKey = startKey+rangePerThread-1;
-    //[ startKey, endKey );
+    //[ startKey, endKey ];
     List<Tuple*> vals;
+    vals.clear();
     // cout<<"endKey edge : "<<keys*(ta->id+1)<<"\n";
     while (endKey<keys*(ta->id+1))
     {
@@ -503,6 +446,11 @@ void* run_rangeSearch(void *arg){
     }
     // cout<<"range search keys : "<<vals.size()<<"\n";
     assert(vals.size()==keys);
+    for (int i = 0; i < vals.size(); i++)
+    {
+        assert(vals[i]==val_list[i+keys*ta->id]);
+    }
+    
 }
 
 void* run_delete(void *arg){
@@ -533,21 +481,35 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     ta.count = test_count;
     ta.thread_num = thread_num;
 
+    cout<<"-- initialzing DB configuration --\n\n";
+
     int order = 2;
-    while (pow(order,3)<test_count)
+    while (pow(order,tree_height_)<test_count)
     {
-        order = order<<1;
+        if(order<10){
+            order+=1;
+        }else if(order<100){
+            order+=10;
+        }else if(order<150){
+            order+=5;
+        }else if(order<200){
+            order+=2;
+        }else{
+            order+=1;
+        }
     }
     cout<<"order: "<<order<<"\n\n";
 
-    Options opts;
+    Options opts(order);
     
-    opts.inner_node_children_number = order;
-    opts.leaf_node_record_count = order;
-
+    // opts.inner_node_children_number = order;
+    // opts.leaf_node_record_count = order;
+    // return;
     TableID table_id = 0;
     ta.db = DB::open(table_id,opts);
     assert(ta.db);
+
+    cout<<"-- DB initialization finished --\n\n";
 
     genKV(test_count,order_KV);
 
@@ -613,26 +575,26 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
 
     cout<<"-- search end --\n\n";
 
-    // cout<<"-- rangeSearch start --\n";
+    cout<<"-- rangeSearch start --\n";
 
-    // runBlock([&]() {
-    // for (auto i = 0; i < thread_num; i++)
-    // {
-    //     thread_args *t = new thread_args;
-    //     *t = ta;
-    //     t->id = i;
-    //     assert(pthread_create(&ids[i],0,run_rangeSearch,(void*)t)==0);
-    // }
+    runBlock([&]() {
+    for (auto i = 0; i < thread_num; i++)
+    {
+        thread_args *t = new thread_args;
+        *t = ta;
+        t->id = i;
+        assert(pthread_create(&ids[i],0,run_rangeSearch,(void*)t)==0);
+    }
 
-    // for (auto i = 0; i < thread_num; i++)
-    // {
-    //     thread_args *t;
-    //     assert(pthread_join(ids[i],(void**)&t)==0);
-    //     // delete t;
-    // }
-    // },"tree rangeSearch");
+    for (auto i = 0; i < thread_num; i++)
+    {
+        thread_args *t;
+        assert(pthread_join(ids[i],(void**)&t)==0);
+        // delete t;
+    }
+    },"tree rangeSearch");
 
-    // cout<<"-- rangeSearch end --\n\n";
+    cout<<"-- rangeSearch end --\n\n";
 
     cout<<"-- delete start --\n";
 
@@ -683,6 +645,220 @@ void test_genKV(int count){
     cout<<"\n";
 }
 
+void helpMsg(){
+    cout<<"\n";
+    cout<<"usgae: ./BPTREE_IMPL\tthread_num\ttest_count\torder_KV(default: 0; 0: inorder; 1: order)\tprint_scan(default: 0)\top_count\n";
+    cout<<"\n";
+}
+
+enum OP_TYPE {INSERT, SCAN, RANGE_SCAN, DELETE};
+
+struct mixed_thread
+{
+    OP_TYPE type;
+    DB* db;
+};
+
+void run_mixed_op(void *arg){
+    mixed_thread *ta = (mixed_thread*) arg;
+    IndexKey opKey;
+    
+    switch (ta->type)
+    {
+    case INSERT:{
+        rw_lock.GetReadLock();
+        if(rand_key_list.size()==0){
+            rw_lock.ReleaseReadLock();
+            break;       
+        }
+        rw_lock.ReleaseReadLock();
+        rw_lock.GetWriteLock();
+        opKey = rand_key_list[rand_key_list.size()-1];
+        rand_key_list.pop_back();
+        int toAddIdx = added_key_list.binaryFind(opKey);
+        added_key_list.insert(toAddIdx,opKey);
+        rw_lock.ReleaseWriteLock();
+        assert(ta->db->put(opKey,val_list[opKey]));
+        }
+        break;
+    case SCAN:{
+        rw_lock.GetReadLock();
+        if(added_key_list.size()==0){
+            rw_lock.ReleaseReadLock();
+            break;
+        }
+        opKey = added_key_list[rand()%added_key_list.size()];
+        rw_lock.ReleaseReadLock();
+        Tuple *tmp;
+        assert(ta->db->get(opKey,tmp));
+        assert(tmp==val_list[opKey]);
+        }
+        break;
+    case RANGE_SCAN:{
+        rw_lock.GetReadLock();
+        if(added_key_list.size()<1){
+            rw_lock.ReleaseReadLock();
+            break;
+        }
+        int startKeyIdx = rand()%(added_key_list.size()-1);
+        IndexKey startKey = added_key_list[startKeyIdx];
+        int range = rand()%(added_key_list.size()-startKeyIdx);
+        if(range==0){
+            range = 1;
+        }
+        int endKeyIdx = startKeyIdx+range;
+        IndexKey endKey = added_key_list[endKeyIdx];
+        List<IndexKey> matchKey;
+        matchKey.clear();
+        for (int i = startKeyIdx; i <= endKeyIdx; i++)
+        {
+            matchKey.add(added_key_list[i]);
+        }
+        List<Tuple*> vals;
+        vals.clear();
+        ta->db->rangeGet(startKey,endKey,vals);
+        rw_lock.ReleaseReadLock();
+        assert(vals.size()==matchKey.size());
+        rw_lock.GetWriteLock();
+        if(matchKey.size()!=vals.size()){
+            cout<<"-- rangeScan match test --\n\n";
+            cout<<"match key:\t "<<matchKey.size()<<"\n";
+            cout<<"vals key:\t "<<vals.size()<<"\n";
+        }
+        rw_lock.ReleaseWriteLock();
+        }
+        break;
+    case DELETE:{
+        rw_lock.GetReadLock();
+        if(added_key_list.size()==0){
+            rw_lock.ReleaseReadLock();
+            break;    
+        }
+        rw_lock.ReleaseReadLock();
+        rw_lock.GetWriteLock();
+        int opKeyIdx = rand()%added_key_list.size();
+        opKey = added_key_list[opKeyIdx];
+        added_key_list.removeAt(opKeyIdx);
+        rw_lock.ReleaseWriteLock();
+        assert(ta->db->del(opKey));
+        }
+        break;
+    }
+}
+
+void mixed_test(int thread_num, int test_count, int op_count, int order_KV){
+    
+    mixed_thread ta;
+
+    cout<<"-- initialzing DB configuration --\n\n";
+
+    int order = 2;
+    while (pow(order,tree_height_)<test_count)
+    {
+        order = order<<1;
+    }
+    cout<<"order: "<<order<<"\n\n";
+
+    Options opts(order);
+    
+    // opts.inner_node_children_number = order;
+    // opts.leaf_node_record_count = order;
+
+    TableID table_id = 0;
+    ta.db = DB::open(table_id,opts);
+    assert(ta.db);
+
+    cout<<"-- DB initialization finished --\n\n";
+    genKV(test_count,order_KV);
+
+    cout<<"-- insert test_count/4 (K,V) for warm-up --\n";
+
+    runBlock([&](){
+    for (int i = 0; i < test_count/4; i++)
+    {
+        IndexKey opKey = rand_key_list[rand_key_list.size()-1];
+        rand_key_list.pop_back();
+        int toAddIdx = added_key_list.binaryFind(opKey);
+        added_key_list.insert(toAddIdx,opKey);
+        assert(ta.db->put(opKey,val_list[opKey]));
+    }
+    },"warm-up");
+    
+    cout<<"-- warm-up finished --\n\n";
+
+    pthread_t ids[thread_num];
+
+    List<int> type_count;
+    type_count.reserve(4);
+    for (int i = 0; i < 4; i++)
+    {
+        type_count.add(0);
+    }
+    
+    cout<<"-- mixed test start --\n";
+
+    // 初始化线程池
+    ThreadPool pool(thread_num);
+    pool.Start();
+    
+    runBlock([&](){
+        for (int i = 0; i < op_count; i++)
+        {
+            mixed_thread *t = new mixed_thread;
+            *t = ta;
+            int type_id = rand()%4;
+            t->type = OP_TYPE(type_id);
+
+            type_count[type_id] = type_count[type_id]+1;
+            
+            auto fun = std::bind(run_mixed_op,(void*)t);
+            if(type_id==0){
+                pool.AddFun(fun,"insert");
+            }else if(type_id==1){
+                pool.AddFun(fun,"scan");
+            }else if(type_id==2){
+                pool.AddFun(fun,"range_scan");
+            }else{
+                pool.AddFun(fun,"delete");
+            }
+        }
+        },"mixed operation test");
+
+    sleep(1);
+
+    cout<<"-- mixed test end --\n\n";
+
+    cout<<"\ntest finish\n";
+    cout<<"thread count:\t"<<thread_num<<"\n";
+    cout<<"oprate count:\t"<<op_count<<"\n\n";
+    
+    cout<<"INSERTATION op_count:\t"<<type_count[0]<<"\n";
+    cout<<"SINGALSCAN op_count:\t"<<type_count[1]<<"\n";
+    cout<<"RANGESCAN op_count:\t"<<type_count[2]<<"\n";
+    cout<<"DELETATION op_count:\t"<<type_count[3]<<"\n\n";
+}
+
+
+void test(int i)
+{
+    cout<<i<<"\n";
+    usleep(50);
+}
+
+void threadPool_test(){
+    ThreadPool pool(4);
+    pool.Start();
+    for(int i=0; i<100; i++)
+    {
+        auto fun = std::bind(test,i);
+        pool.AddFun(fun,"group");
+    }
+ 
+    sleep(3);
+    cout<<"exit\n";
+
+}
+
 int main(int argc,char **argv){
     // record_test();
     // rwlock_test();
@@ -692,20 +868,26 @@ int main(int argc,char **argv){
     // list_test();
     // return 0;
     if(argc==1){
-        cout<<"help\n./BPTREE_IMPL\tthread_num\ttest_count\torder_KV(default: 0; 0: inorder; 1: order)\tprint_scan(default: 0)\n";
+        helpMsg();
         return 0;
     }else{
 
     int thread_num = atoi(argv[1]);
     int test_count = atoi(argv[2]);
     int order_KV = 0;
+    int op_count = 1000000;
     if(argc>=4){
         order_KV = atoi(argv[3]);
     }
     if(argc>=5){
         print_scan = atoi(argv[4]);
     }
+    if(argc>=6){
+        op_count = atoi(argv[5]);
+    }
     // test_genKV(test_count);
     db_pthread_test(thread_num,test_count,print_scan,order_KV);
+    // mixed_test(thread_num, test_count, op_count, order_KV);
+    // threadPool_test();
     }
 }

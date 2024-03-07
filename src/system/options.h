@@ -8,9 +8,9 @@
 class Options
 {
 public:
-    Options(){
-        inner_node_children_number = 16;
-        leaf_node_record_count = 16;
+    Options(int order){
+        inner_node_children_number = order;
+        leaf_node_record_count = order;
         comparator = new DefaultCompare<IndexKey>;
     };
     ~Options(){};
