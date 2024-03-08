@@ -28,7 +28,7 @@ DBrwLock rw_lock;
 
 int count_;
 int print_scan = 0;
-int tupleSize = 8; // x Bytes
+int tupleSize = 4; // x Bytes
 int tree_height_ = 3;
 
 List<Tuple*> val_list;
@@ -545,6 +545,11 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     cout<<"-- write end --\n\n";
 
     int treeHeight = ta.db->treeHeight();
+    size_t treeByteSize = ta.db->byteSize();
+    size_t poolByteSize = ta.db->poolSize();
+
+    cout<<"now Bplustree mem occupied:\t"<<treeByteSize<<"\n\n";
+    cout<<"now nodepool mem occupied:\t"<<poolByteSize<<"\n\n";
 
     assert(treeHeight!=0);
     
@@ -626,6 +631,8 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     cout<<"value type:\t"<<"Tuple("<<tupleSize<<") = "<<tupleSize<<" Bytes"<<"\n";
     cout<<"value size:\t"<<test_count<<" Bytes\n\n";
     cout<<"data size:\t"<<test_count*sizeof(IndexKey)+test_count*tupleSize<<" Bytes\n\n";
+    cout<<"max Bplustree mem occupied:\t"<<treeByteSize<<"\n\n";
+    cout<<"max nodepool mem occupied:\t"<<poolByteSize<<"\n\n";
     if(order_KV){
         cout<<"key order:\t"<<"order\n";
     }else{

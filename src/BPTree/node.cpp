@@ -251,6 +251,23 @@ void InnerNode::lock_range_leaf(IndexKey startKey, IndexKey endKey, List<DataNod
 
 void InnerNode::rangeScan(IndexKey startKey, IndexKey endKey, List<Tuple*>& values){}
 
+size_t InnerNode::byteSize(){
+    // bool + bid_t
+    size_t childBytes = 0;
+    if(first_child_!=NID_NIL){
+        bid_t chidx = first_child_;
+        DataNode *ch = tree_->load_node(chidx);
+        childBytes+=ch->byteSize();
+    }
+    for (int i = 0; i < pivots_.size(); i++)
+    {
+        bid_t chidx = pivots_[i].child;
+        DataNode *ch = tree_->load_node(chidx);
+        childBytes+=ch->byteSize();
+    }
+    return 1+8+pivots_.byteSize(pivots_.size())+childBytes;
+}
+
 // ...... LeafNode ...... //
 
 LeafNode::~LeafNode(){
@@ -684,12 +701,12 @@ bool LeafNode::descend(const Msg& m,InnerNode* parent){
 
     IndexKey anchor = m.key;
     
-    if(right_sibling_!=NID_NIL){
+    if(right_sibling_!=NID_NIL&&m.key>max_){
         // cout<<"touch............\n";
         LeafNode* right_sibling_node_ = (LeafNode* )tree_->load_node(right_sibling_);
-        right_sibling_node_->read_lock();
+        // right_sibling_node_->read_lock();
         if(m.key>=right_sibling_node_->first_key_){
-            right_sibling_node_->rLock_unlock();
+            // right_sibling_node_->rLock_unlock();
             // cout<<"touch............\n";
             // plan 1:
             wlock_unlock();
@@ -701,7 +718,7 @@ bool LeafNode::descend(const Msg& m,InnerNode* parent){
             // // return tree_->root_->write(m);
             // return tree_->put(m.key,m.value);
         }else{
-            right_sibling_node_->rLock_unlock();
+            // right_sibling_node_->rLock_unlock();
         }
     }
 
@@ -813,4 +830,8 @@ int InnerNode::treeHeight(){
 
 int LeafNode::treeHeight(){
     return 1;
+}
+
+size_t LeafNode::byteSize(){
+    return 1+8+8+8+8+records_.length();
 }

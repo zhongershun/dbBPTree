@@ -29,6 +29,10 @@ public:
 
     virtual void scan() = 0;
 
+    virtual size_t byteSize() = 0;
+
+    virtual size_t poolSize() = 0;
+
     virtual int descendCount()=0;
 
     virtual int treeHeight()=0;
@@ -62,6 +66,14 @@ public:
 
     int treeHeight(){
         return tree_->treeHeight();
+    }
+
+    size_t byteSize(){
+        return tree_->byteSize();
+    }
+
+    size_t poolSize(){
+        return nodepool_->byteSize();
     }
 
     int descendCount(){

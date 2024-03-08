@@ -40,6 +40,8 @@ public:
     bool rangeGet(IndexKey startKey, IndexKey endKey, List<Tuple*>& values);
 
     int treeHeight();
+
+    size_t byteSize();
     
     // debug用
     void scan();

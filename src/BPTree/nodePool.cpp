@@ -89,3 +89,7 @@ Node* NodePool::get(const TableID& tbid, bid_t nid){
     
     return node;
 }
+
+size_t NodePool::byteSize(){
+    return 8*nodes_.size();
+}

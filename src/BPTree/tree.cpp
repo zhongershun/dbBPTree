@@ -75,6 +75,12 @@ int Tree::treeHeight(){
     return root->treeHeight();
 }
 
+size_t Tree::byteSize(){
+    assert(root_);
+    InnerNode *root = root_;
+    return root->byteSize();
+}
+
 InnerNode* Tree::new_inner_node(){
     schema_->write_lock();
 

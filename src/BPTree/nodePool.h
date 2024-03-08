@@ -32,6 +32,8 @@ public:
 
     Node* get(const TableID& tbid, bid_t nid);
 
+    size_t byteSize();
+
 private:
 
     class PoolKey {
