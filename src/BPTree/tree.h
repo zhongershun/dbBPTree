@@ -20,9 +20,9 @@ public:
          NodePool *nodepool)
     : table_id_(table_id),
       options_(options),
-      node_factory_(NULL),
-      root_(NULL),
-      schema_(NULL),
+      node_factory_(nullptr),
+      root_(nullptr),
+      schema_(nullptr),
       nodepool_(nodepool)
     {
     }

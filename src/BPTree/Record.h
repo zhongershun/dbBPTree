@@ -76,8 +76,8 @@ public:
     length_(0),size_(0){bucket_.records = new Records();}
 
     ~RecordBucket(){ //有问题
-        // delete bucket_.records;
-        bucket_.records = NULL;
+        delete bucket_.records;
+        bucket_.records = nullptr;
     };
     
     size_t bucket_length(){ // 实际返回存储的records占据的大小
@@ -89,7 +89,7 @@ public:
     }
 
     void set_bucket(Records* records){
-        // assert(bucket_.records==NULL);
+        // assert(bucket_.records==nullptr);
         bucket_.records=records;
         bucket_.length = 4;
         for (size_t i = 0; i < records->size(); i++)
@@ -198,7 +198,7 @@ public:
     }
 
     int find(IndexKey key){
-        Msg keyMsg(_Msg,key,NULL);
+        Msg keyMsg(_Msg,key,nullptr);
         int idx = msgs_.binaryFind(keyMsg);
         assert(idx>=0&&idx<msgs_.size());
         return idx;

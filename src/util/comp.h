@@ -5,7 +5,7 @@
 
 template<typename T>
 struct DefaultCompare {
-    uint32_t operator()(const T &x, const T &y) const {
+    uint64_t operator()(const T &x, const T &y) const {
         if (x > y) {
             return 1;
         } else if (x == y) {

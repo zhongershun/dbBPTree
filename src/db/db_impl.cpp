@@ -43,7 +43,7 @@ DB* DB::open(const TableID& table_id, const Options& options){
     DBImpl* db = new DBImpl(table_id, options);
     if(!db->init()){
         delete db;
-        return NULL;
+        return nullptr;
     }
     return db;
 }

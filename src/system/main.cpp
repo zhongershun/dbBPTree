@@ -99,7 +99,7 @@ void genKV(int count, int order_KV){
         //     order_key_list.removeAt(idx);
         // }
     }else{
-        shuffle(order_key_list.begin(),order_key_list.end(),default_random_engine(time(NULL)));
+        shuffle(order_key_list.begin(),order_key_list.end(),default_random_engine(time(nullptr)));
         rand_key_list.swap(order_key_list);
     }
     for (int i = 0; i < count; i++)
@@ -144,7 +144,7 @@ void list_test(){
     // }
     cout<<"\n";
 
-    shuffle(testList.begin(),testList.end(),default_random_engine(time(NULL)));
+    shuffle(testList.begin(),testList.end(),default_random_engine(time(nullptr)));
     for (auto it = testList.begin();it!=testList.end();++it)
     {
         // if(*it%1000==0){

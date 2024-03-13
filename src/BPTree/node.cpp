@@ -215,7 +215,7 @@ void InnerNode::maybe_descend(const Msg& m){
     int idx = find_pivot(k);
     bid_t nid = child(idx);
 
-    DataNode *node = NULL;
+    DataNode *node = nullptr;
     if(nid==NID_NIL){
         rLock_unlock();
         write_lock(); // 新增child需要加写锁来防止出错的
@@ -272,6 +272,7 @@ size_t InnerNode::byteSize(){
 
 LeafNode::~LeafNode(){
     records_.bucket_.records->clear();
+    records_.bucket_.length = 0;
 }
 
 void LeafNode::split(IndexKey anchor){
@@ -471,9 +472,9 @@ void LeafNode::rangeScan(IndexKey startKey, IndexKey endKey, List<Tuple*>& value
             return;
         }
         if(endKey<=max_){ // case 1
-            int start_idx = records_.bucket_.records->binaryFind(Record(startKey,NULL));
+            int start_idx = records_.bucket_.records->binaryFind(Record(startKey,nullptr));
 
-            int end_idx = records_.bucket_.records->binaryFind(Record(endKey,NULL));
+            int end_idx = records_.bucket_.records->binaryFind(Record(endKey,nullptr));
             if(start_idx>=records_.size()||end_idx>=records_.size()){
                 
             }else{
@@ -490,7 +491,7 @@ void LeafNode::rangeScan(IndexKey startKey, IndexKey endKey, List<Tuple*>& value
             return;
         }
         if(endKey>max_&&startKey<=max_){ // case 3
-            int start_idx = records_.bucket_.records->binaryFind(Record(startKey,NULL));
+            int start_idx = records_.bucket_.records->binaryFind(Record(startKey,nullptr));
             if(start_idx>=records_.size()){
 
             }else{
@@ -533,7 +534,7 @@ void LeafNode::rangeScan(IndexKey startKey, IndexKey endKey, List<Tuple*>& value
             return;
         }
         if(endKey<=max_&&endKey>=min_){ // case 4
-            int end_idx = records_.bucket_.records->binaryFind(Record(endKey,NULL));
+            int end_idx = records_.bucket_.records->binaryFind(Record(endKey,nullptr));
             if(end_idx>=records_.size()){
 
             }else{
@@ -615,9 +616,9 @@ void LeafNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& value
 //             return;
 //         }
 //         if(endKey<=max_){ // case 1
-//             int start_idx = records_.bucket_.records->binaryFind(Record(startKey,NULL));
+//             int start_idx = records_.bucket_.records->binaryFind(Record(startKey,nullptr));
 
-//             int end_idx = records_.bucket_.records->binaryFind(Record(endKey,NULL));
+//             int end_idx = records_.bucket_.records->binaryFind(Record(endKey,nullptr));
 //             if(start_idx>=records_.size()||end_idx>=records_.size()){
                 
 //             }else{
@@ -634,7 +635,7 @@ void LeafNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& value
 //             return;
 //         }
 //         if(endKey>max_&&startKey<=max_){ // case 3
-//             int start_idx = records_.bucket_.records->binaryFind(Record(startKey,NULL));
+//             int start_idx = records_.bucket_.records->binaryFind(Record(startKey,nullptr));
 //             if(start_idx>=records_.size()){
 
 //             }else{
@@ -677,7 +678,7 @@ void LeafNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& value
 //             return;
 //         }
 //         if(endKey<=max_&&endKey>=min_){ // case 4
-//             int end_idx = records_.bucket_.records->binaryFind(Record(endKey,NULL));
+//             int end_idx = records_.bucket_.records->binaryFind(Record(endKey,nullptr));
 //             if(end_idx>=records_.size()){
 
 //             }else{
@@ -708,15 +709,17 @@ bool LeafNode::descend(const Msg& m,InnerNode* parent){
         if(m.key>=right_sibling_node_->first_key_){
             // right_sibling_node_->rLock_unlock();
             // cout<<"touch............\n";
+            
             // plan 1:
-            wlock_unlock();
-            return right_sibling_node_->descend(m,parent);
+            // wlock_unlock();
+            // return right_sibling_node_->descend(m,parent);
 
             // plan 2:
-            // parent->rLock_unlock();
-            // wlock_unlock();
-            // // return tree_->root_->write(m);
-            // return tree_->put(m.key,m.value);
+            parent->rLock_unlock();
+            wlock_unlock();
+            // return tree_->root_->write(m);
+            return tree_->put(m.key,m.value);
+       
         }else{
             // right_sibling_node_->rLock_unlock();
         }
@@ -766,10 +769,11 @@ bool LeafNode::descend(const Msg& m,InnerNode* parent){
     // assert(aftercount==(beforecount+1));
 
     if(aftercount){
-        if((*records_.bucket_.records)[0].key<=first_key_){
+        // if((*records_.bucket_.records)[0].key<=first_key_){
         first_key_ = (*records_.bucket_.records)[0].key;
-        }
+        // }
         min_ = (*records_.bucket_.records)[0].key;
+        assert(min_==first_key_);
         max_ = (*records_.bucket_.records)[records_.size()-1].key;
     }else{
         first_key_ = -1;

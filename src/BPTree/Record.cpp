@@ -6,7 +6,7 @@ size_t Record::size(){
 
 void RecordBucket::push_back(Record record){
     Records *records;
-    if(bucket_.records==NULL){
+    if(bucket_.records==nullptr){
         records = new Records;
         RecordBucketInfo info;
         info.records = records;

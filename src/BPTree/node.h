@@ -53,7 +53,7 @@ class Node {
 public:
     Node(const TableID table_id, bid_t nid):
     table_id_(table_id),nid_(nid){
-        // pthread_rwlock_init(&lock_,NULL);
+        // pthread_rwlock_init(&lock_,nullptr);
         }
 
     virtual ~Node(){};
@@ -180,7 +180,7 @@ public:
     
     bool del(IndexKey key)
     {
-        return write(Msg(Del,key,NULL));
+        return write(Msg(Del,key,nullptr));
     }
 
     virtual bool find(IndexKey key, Tuple*& value, InnerNode* parent);

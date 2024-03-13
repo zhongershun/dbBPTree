@@ -64,7 +64,7 @@ Node* NodePool::get(const TableID& tbid, bid_t nid){
 
     // 若节点不存在，利用存储的table的factory创建一个新的节点
     tables_lock_.GetReadLock();
-    NodeFactory* factory=NULL;
+    NodeFactory* factory=nullptr;
     auto it2 = tables_.find(tbid);
     if(it2!=tables_.end()){
         factory = it2->second;

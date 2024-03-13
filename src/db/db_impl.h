@@ -45,8 +45,8 @@ public:
     DBImpl(const TableID& table_id, const Options& options)
     : table_id_(table_id),
       options_(options),
-      nodepool_(NULL),
-      tree_(NULL){}
+      nodepool_(nullptr),
+      tree_(nullptr){}
 
     ~DBImpl();
 

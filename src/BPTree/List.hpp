@@ -7,18 +7,18 @@
 #include <cstdint>
 #include <stdio.h>
 
-#define MIN_CAP (uint32_t)1 // min capcity of list
+#define MIN_CAP (uint64_t)1 // min capcity of list
 
 template<typename T, class Comp=DefaultCompare<T>>
 class List
 {
 private:
-    uint32_t cap{};
-    uint32_t size_ = 0;
+    uint64_t cap{};
+    uint64_t size_ = 0;
     const Comp comp;
 
     inline void initAllocate();
-    inline void expandTo(uint32_t cap);
+    inline void expandTo(uint64_t cap);
 
     T *values;
 
@@ -29,10 +29,10 @@ public:
     // List():List(2){}
     
     // List(cap)
-    List(uint32_t cap);
+    List(uint64_t cap);
     
     // List(cap, comp)
-    List(uint32_t cap, Comp comp);
+    List(uint64_t cap, Comp comp);
     
     // List(&list)
     List(List &list);
@@ -116,7 +116,7 @@ public:
 
 
     // 设置idx处值set(idx,&val);
-    void set(uint32_t index, const T &value);
+    void set(uint64_t index, const T &value);
 
     // add(val);
     void add(const T &value);
@@ -125,16 +125,16 @@ public:
     void add(const List<T, Comp> &list);
 
     // add(list,startIndex);
-    void add(const List<T, Comp> &list, uint32_t startIndex);
+    void add(const List<T, Comp> &list, uint64_t startIndex);
 
     // add(list,startIndex,endIndex);
-    void add(const List<T, Comp> &list, uint32_t startIndex, uint32_t endIndex);
+    void add(const List<T, Comp> &list, uint64_t startIndex, uint64_t endIndex);
 
     // insert(index,&val);
-    void insert(uint32_t index, const T &value);
+    void insert(uint64_t index, const T &value);
 
     // insert(index,&list);
-    void insert(uint32_t index, const List<T, Comp> &list);
+    void insert(uint64_t index, const List<T, Comp> &list);
 
     // insert(index,&list,startIndex,count);
     void insert(int index, const List<T, Comp> &list, int startIndex, int count);
@@ -148,12 +148,12 @@ public:
     void clear();
 
     // reserve(cap);
-    void reserve(uint32_t cap);
+    void reserve(uint64_t cap);
     
     // binaryFind(&val);
-    uint32_t binaryFind(const T &val) const;
+    uint64_t binaryFind(const T &val) const;
 
-    uint32_t size() const;
+    uint64_t size() const;
 
     bool isEmpty();
 
@@ -171,11 +171,11 @@ public:
     inline void checkRange(int index) const;
 
     // byteSize(count)
-    inline size_t byteSize(uint32_t count);
+    inline size_t byteSize(uint64_t count);
 
-    T &operator[](uint32_t index);
+    T &operator[](uint64_t index);
 
-    const T &operator[](uint32_t index) const;
+    const T &operator[](uint64_t index) const;
 
     // 新增方法
     void push_back(const T &value){
@@ -229,12 +229,12 @@ template<typename T, class Comp>
 List<T,Comp>::List():List(2){}
 
 template<typename T, class Comp>
-List<T,Comp>::List(uint32_t cap):cap(std::max(MIN_CAP, cap)),comp(){
+List<T,Comp>::List(uint64_t cap):cap(std::max(MIN_CAP, cap)),comp(){
     initAllocate();
 }
 
 template<typename T, class Comp>
-List<T,Comp>::List(uint32_t cap, Comp comp):cap(std::max(MIN_CAP, cap)),comp(){
+List<T,Comp>::List(uint64_t cap, Comp comp):cap(std::max(MIN_CAP, cap)),comp(){
     values=(T *)malloc(byteSize(cap));
     if(!values){
         printf("cannot malloc\n");
@@ -262,12 +262,12 @@ List<T,Comp>::List(const List &list):cap(list.cap),comp(list.comp),size_(list.si
 template<typename T, class Comp>
 List<T,Comp>::~List(){
     free(values);
-    values=NULL;
+    values=nullptr;
 }
 
 
 template<typename T, class Comp>
-void List<T, Comp>::set(uint32_t index, const T &value){
+void List<T, Comp>::set(uint64_t index, const T &value){
     if (index<size_ && index>=0)
     {
         values[index] = value;
@@ -288,17 +288,17 @@ void List<T,Comp>::add(const List<T, Comp> &list){
 }
 
 template<typename T, class Comp>
-void List<T,Comp>::add(const List<T, Comp> &list, uint32_t startIndex){
+void List<T,Comp>::add(const List<T, Comp> &list, uint64_t startIndex){
     add(list,startIndex,list.size_-1);
 }
 
 template<typename T, class Comp>
-void List<T,Comp>::add(const List<T, Comp> &list, uint32_t startIndex, uint32_t endIndex){
+void List<T,Comp>::add(const List<T, Comp> &list, uint64_t startIndex, uint64_t endIndex){
     insert(size_,list,startIndex,endIndex-startIndex+1);
 }
 
 template<typename T, class Comp>
-void List<T, Comp>::insert(uint32_t index, const T &value){
+void List<T, Comp>::insert(uint64_t index, const T &value){
     if(size_+1>=cap){
         expandTo(cap<<1); //cap*2
     }
@@ -308,8 +308,8 @@ void List<T, Comp>::insert(uint32_t index, const T &value){
 }
 
 template<typename T, class Comp>
-void List<T,Comp>::insert(uint32_t index, const List<T, Comp> &list){
-    uint32_t cap = this->cap;
+void List<T,Comp>::insert(uint64_t index, const List<T, Comp> &list){
+    uint64_t cap = this->cap;
     while ((size_+list.size_)>=cap)
     {
         cap<<=1;
@@ -329,7 +329,7 @@ void List<T,Comp>::insert(int index, const List<T, Comp> &list, int startIndex, 
     }
     list.checkRange(startIndex);
     list.checkRange(startIndex+count-1);
-    uint32_t cap = this->cap;
+    uint64_t cap = this->cap;
     while (cap<=size_+count)
     {
         cap<<=1;
@@ -370,19 +370,19 @@ void List<T,Comp>::clear(){
 }
 
 template<typename T, class Comp>
-void List<T,Comp>::reserve(uint32_t cap){
+void List<T,Comp>::reserve(uint64_t cap){
     this->cap = std::max(cap,MIN_CAP);
     expandTo(this->cap);
 }
     
 template<typename T, class Comp>    
-uint32_t List<T,Comp>::binaryFind(const T &val) const{
+uint64_t List<T,Comp>::binaryFind(const T &val) const{
     if(!size_){
         return 0;
     }
-    uint32_t high = size_;
-    uint32_t low = 0;
-    uint32_t mid;
+    uint64_t high = size_;
+    uint64_t low = 0;
+    uint64_t mid;
     int32_t c;
     while (low<high)
     {
@@ -400,7 +400,7 @@ uint32_t List<T,Comp>::binaryFind(const T &val) const{
 }
 
 template<typename T, class Comp>
-uint32_t List<T,Comp>::size() const{
+uint64_t List<T,Comp>::size() const{
     return size_;
 }
 
@@ -416,13 +416,13 @@ T &List<T,Comp>::get(int index){
 }
 
 template<typename T, class Comp>
-T &List<T, Comp>::operator[](uint32_t index) {
+T &List<T, Comp>::operator[](uint64_t index) {
     checkRange(index);
     return values[index];
 }
 
 template<typename T, class Comp>
-const T &List<T, Comp>::operator[](uint32_t index) const {
+const T &List<T, Comp>::operator[](uint64_t index) const {
     checkRange(index);
     return values[index];
 }
@@ -455,7 +455,7 @@ inline void List<T,Comp>::autoTrim(){
 }
 
 template<typename T, class Comp>
-size_t List<T,Comp>::byteSize(uint32_t count){
+size_t List<T,Comp>::byteSize(uint64_t count){
     return count*sizeof(T);
 }
 
@@ -468,7 +468,7 @@ void List<T,Comp>::checkRange(int index) const{
 }
 
 template<typename T, class Comp>
-void List<T, Comp>::expandTo(uint32_t cap) {
+void List<T, Comp>::expandTo(uint64_t cap) {
     values = (T *) realloc(values, byteSize(cap));
     if (!values) {
         printf("re-alloc failed!\n");

@@ -54,7 +54,7 @@ bool Tree::del(IndexKey key){
 bool Tree::get(IndexKey key, Tuple*&value){
     assert(root_);
     InnerNode *root = root_;
-    bool ret = root->find(key, value, NULL);
+    bool ret = root->find(key, value, nullptr);
     return ret;
 }
 
@@ -62,7 +62,7 @@ bool Tree::get(IndexKey key, Tuple*&value){
 bool Tree::rangeGet(IndexKey startKey, IndexKey endKey, List<Tuple*>& values){
     assert(root_);
     InnerNode *root = root_;
-    root->rangeFind(startKey, endKey, values, NULL);
+    root->rangeFind(startKey, endKey, values, nullptr);
     // cout<<"touch.........\n";
     // cout<<"range search keys : "<<values.size()<<"\n\n\n";
     bool ret = values.size();
