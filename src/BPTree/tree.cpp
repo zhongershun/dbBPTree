@@ -58,6 +58,19 @@ bool Tree::get(IndexKey key, Tuple*&value){
     return ret;
 }
 
+bool Tree::minBound(IndexKey minKey, Tuple*& value){
+    assert(root_);
+    InnerNode *root = root_;
+    bool ret = root->boundFind(minKey, false, value, nullptr);
+    return ret;
+}
+
+bool Tree::maxBound(IndexKey maxKey, Tuple*& value){
+    assert(root_);
+    InnerNode *root = root_;
+    bool ret = root->boundFind(maxKey, true, value, nullptr);
+    return ret;
+}
 // [startKey, endKey]
 bool Tree::rangeGet(IndexKey startKey, IndexKey endKey, List<Tuple*>& values){
     assert(root_);

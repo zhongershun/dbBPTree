@@ -175,6 +175,25 @@ bool InnerNode::find(IndexKey key, Tuple*& value, InnerNode* parent){
     return ret;
 }
 
+bool InnerNode::boundFind(IndexKey boundKey, bool MaxOrMin,Tuple*& value, InnerNode* parent){
+    bool ret = false;
+    read_lock();
+    if(parent){
+        parent->rLock_unlock();
+    }
+    int idx = find_pivot(boundKey);
+    bid_t chidx = child(idx);
+    if(chidx==NID_NIL){
+        assert(idx==0);
+        rLock_unlock();
+        return false;
+    }
+    DataNode* ch = tree_->load_node(chidx);
+    assert(ch);
+    ret = ch->boundFind(boundKey,MaxOrMin,value,this);
+    return ret;
+}
+
 void InnerNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent){
     read_lock();
     if(parent){
@@ -416,6 +435,66 @@ bool LeafNode::find(IndexKey key, Tuple*& value, InnerNode* parent){
     }
     rLock_unlock();
     return ret;
+}
+
+bool LeafNode::boundFind(IndexKey boundKey, bool MaxOrMin,Tuple*& value, InnerNode* parent){
+    assert(parent);
+    read_lock();
+    parent->rLock_unlock();
+
+    bool ret = false;
+
+    int idx = records_.bucket_.records->binaryFind(Record(boundKey,value));
+
+    if(idx>=records_.size()&&MaxOrMin){
+        value = (*(records_.bucket_.records))[records_.size()-1].value;
+        ret = true;
+        rLock_unlock();
+        return ret;
+    }else if(idx>=records_.size()&&(!MaxOrMin)){
+        rLock_unlock();
+        if(right_sibling_==NID_NIL){
+            return false;
+        }else{
+            DataNode *rl = tree_->load_node(right_sibling_);
+            rLock_unlock();
+            return rl->boundFind(boundKey,MaxOrMin,value,parent);
+        }
+    }
+
+    if((*(records_.bucket_.records))[idx].key==boundKey){
+        value = (*(records_.bucket_.records))[idx].value;
+        ret = true;
+        rLock_unlock();
+        return ret;
+    }else{
+        if(MaxOrMin){
+            if(idx==0){
+                rLock_unlock();
+                return tree_->minBound(boundKey,value);
+            }else{
+                while (idx>0&&((*(records_.bucket_.records))[idx].key>=boundKey))
+                {
+                    idx--;
+                }
+                if((*(records_.bucket_.records))[idx].key<boundKey){
+                    value = (*(records_.bucket_.records))[idx].value;
+                    ret = true;
+                    rLock_unlock();
+                    return ret;
+                }else{
+                    rLock_unlock();
+                    return tree_->minBound(boundKey,value);
+                }
+            }
+        }else{
+            assert((*(records_.bucket_.records))[idx].key>boundKey);
+            value = (*(records_.bucket_.records))[idx].value;
+            ret = true;
+            rLock_unlock();
+            return ret;
+        }
+    }
 }
 
 void LeafNode::lock_range_leaf(IndexKey startKey, IndexKey endKey, List<DataNode*>& range){

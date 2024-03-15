@@ -39,17 +39,20 @@ vector<int> rand_key_list;
 
 List<int> added_key_list;
 
-void printProgressBar(int progress) {
+void printProgressBar(int progress, int id) {
+    std::cout<<"\033[u";
+    std::cout<< "\033["<<id+1<<"B";
+
     int barWidth = 70;
-    std::cout << "[";
+    std::cout << "\r[";
     int pos = barWidth * progress / 100;
     for (int i = 0; i < barWidth; ++i) {
         if (i < pos) std::cout << "=";
         else if (i == pos) std::cout << ">";
         else std::cout << " ";
     }
-    std::cout << "] " << progress << " %\n";
-    // std::cout.flush();
+    std::cout << "] " << progress << " %";
+    std::cout.flush();
 }
 
 template<class Function>
@@ -74,14 +77,18 @@ void genKV(int count, int order_KV){
     rand_key_list.reserve(count);
     val_list.reserve(count);
     cout<<".......preparing order data.......\n";
+    cout<<"\033[s";
     for (long i = 0; i < count; i++)
     {
         if(i%(count/100)==0){
             int progress = i*100/count;
-            printProgressBar(progress);
+            printProgressBar(progress,0);
         }
+        // cout<<"\n";
         order_key_list.push_back(i);
     }
+    cout<<"\033[u";
+    cout<<"\033[1B\n";
     cout<<".......preparing order data finished.......\n\n";
     cout<<".......preparing rand data.......\n";
     if(order_KV){
@@ -389,12 +396,18 @@ void* run_insert(void *arg){
     int keys = count/ta->thread_num; // 每个线程插入的Tuple数量
     assert(keys*ta->thread_num==count);
 
-    for (int i = 0; i < keys; i++)
+    for (long i = 0; i < keys; i++)
     {
         IndexKey k = rand_key_list[keys*ta->id+i];
         assert(ta->db->put(k,val_list[k]));
         Tuple *tmp;
         // assert(ta->db->get(k,tmp));
+        if(i%100==0){
+            rw_lock.GetWriteLock();
+            printProgressBar(i*100/keys,ta->id);
+            rw_lock.ReleaseWriteLock();
+        }
+            
         if(print_scan){
             rw_lock.GetWriteLock();
             cout<<"pass: "<<k<<"\n";
@@ -409,7 +422,7 @@ void* run_search(void *arg){
     int count = ta->count; // 总的Tuple数量
     int keys = count/ta->thread_num; // 每个线程插入的Tuple数量
 
-    for (int i = 0; i < keys; i++)
+    for (long i = 0; i < keys; i++)
     {
         Tuple* val;
         IndexKey k = rand_key_list[keys*ta->id+i];
@@ -420,6 +433,11 @@ void* run_search(void *arg){
         // }
         assert(ta->db->get(k,val));
         assert(val==val_list[k]);
+        if(i%100==0){
+            rw_lock.GetWriteLock();
+            printProgressBar(i*100/keys,ta->id);
+            rw_lock.ReleaseWriteLock();
+        }
     }
 }
 
@@ -459,7 +477,7 @@ void* run_delete(void *arg){
     int count = ta->count; // 总的Tuple数量
     int keys = count/ta->thread_num; // 每个线程插入的Tuple数量
 
-    for (int i = 0; i < keys; i++)
+    for (long i = 0; i < keys; i++)
     {
         Tuple* val;
         IndexKey k = rand_key_list[keys*ta->id+i];
@@ -470,7 +488,13 @@ void* run_delete(void *arg){
         // }
         assert(ta->db->del(k));
         // assert(val==val_list[k]);
+        if(i%100==0){
+            rw_lock.GetWriteLock();
+            printProgressBar(i*100/keys,ta->id);
+            rw_lock.ReleaseWriteLock();
+        }
     }
+    
 }
 
 void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV){
@@ -524,7 +548,12 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     pthread_t ids[thread_num];
 
     cout<<"-- write start --\n";
-
+    for (int i = 0; i < thread_num; i++)
+    {
+        cout<<"[\n";
+    }
+    cout<<"\033["<<thread_num<<"A";
+    cout<<"\033[s";
     runBlock([&]() {
     for (auto i = 0; i < thread_num; i++)
     {
@@ -540,6 +569,8 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
         assert(pthread_join(ids[i],(void**)&t)==0);
         // delete t;
     }
+    cout<<"\033[u";
+    cout<<"\033["<<thread_num+2<<"B\n";
     },"tree insert");
 
     cout<<"-- write end --\n\n";
@@ -560,7 +591,12 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     cout<<"insert count: "<<ta.db->descendCount()<<"\n";
 
     cout<<"-- search start --\n";
-
+    for (int i = 0; i < thread_num; i++)
+    {
+        cout<<"[\n";
+    }
+    cout<<"\033["<<thread_num<<"A";
+    cout<<"\033[s";
     runBlock([&]() {
     for (auto i = 0; i < thread_num; i++)
     {
@@ -576,6 +612,8 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
         assert(pthread_join(ids[i],(void**)&t)==0);
         // delete t;
     }
+    cout<<"\033[u";
+    cout<<"\033["<<thread_num+2<<"B\n";
     },"tree search");
 
     cout<<"-- search end --\n\n";
@@ -602,7 +640,12 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     cout<<"-- rangeSearch end --\n\n";
 
     cout<<"-- delete start --\n";
-
+    for (int i = 0; i < thread_num; i++)
+    {
+        cout<<"[\n";
+    }
+    cout<<"\033["<<thread_num<<"A";
+    cout<<"\033[s";
     runBlock([&]() {
     for (auto i = 0; i < thread_num; i++)
     {
@@ -618,8 +661,10 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
         assert(pthread_join(ids[i],(void**)&t)==0);
         // delete t;
     }
+    cout<<"\033[u";
+    cout<<"\033["<<thread_num+2<<"B\n";
     },"tree delete");
-
+    
     cout<<"-- delete end --\n\n";
 
     cout<<"\ntest finish\n";
@@ -639,6 +684,30 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
         cout<<"key order:\t"<<"random\n";
     }
 
+}
+
+void db_min_max_test(){
+    Options opts(3);
+    TableID table_id = 0;
+    DB *db = DB::open(table_id,opts);
+    genKV(20,1);
+    for (int i = 0; i < 20; i+=2)
+    {
+        db->put(rand_key_list[i],val_list[rand_key_list[i]]);
+    }
+    for (int i = 1; i < 20; i+=2)
+    {
+        Tuple* val;
+        db->maxBound(rand_key_list[i],val);
+        assert(val==val_list[rand_key_list[i-1]]);
+    }
+    for (int i = 1; i < 19; i+=2)
+    {
+        Tuple* val;
+        db->minBound(rand_key_list[i],val);
+        assert(val==val_list[rand_key_list[i+1]]);
+    }
+    delete db;
 }
 
 void test_genKV(int count){
@@ -893,6 +962,7 @@ int main(int argc,char **argv){
         op_count = atoi(argv[5]);
     }
     // test_genKV(test_count);
+    // db_min_max_test();
     db_pthread_test(thread_num,test_count,print_scan,order_KV);
     // mixed_test(thread_num, test_count, op_count, order_KV);
     // threadPool_test();

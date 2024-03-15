@@ -37,6 +37,10 @@ public:
 
     bool get(IndexKey key, Tuple*& value);
 
+    bool minBound(IndexKey minKey, Tuple*& value);
+
+    bool maxBound(IndexKey maxKey, Tuple*& value);
+
     bool rangeGet(IndexKey startKey, IndexKey endKey, List<Tuple*>& values);
 
     int treeHeight();

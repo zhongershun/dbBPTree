@@ -16,6 +16,10 @@ public:
 
     virtual bool get(IndexKey key, Tuple*& value) = 0;
 
+    virtual bool minBound(IndexKey minKey, Tuple*& value) = 0;
+
+    virtual bool maxBound(IndexKey maxKey, Tuple*& value) = 0;
+
     virtual bool rangeGet(IndexKey startKey, IndexKey endKey, List<Tuple*>& values) = 0;
     
     // inline bool get(IndexKey key, Tuple*& value)
@@ -57,6 +61,10 @@ public:
     bool del(IndexKey key);
 
     bool get(IndexKey key, Tuple*& value);
+
+    bool minBound(IndexKey minKey, Tuple*& value);
+
+    bool maxBound(IndexKey maxKey, Tuple*& value);
 
     void scan(){
         tree_->scan();

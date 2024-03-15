@@ -35,6 +35,14 @@ bool DBImpl::get(IndexKey key, Tuple*& value)
     return tree_->get(key, value);
 }
 
+bool DBImpl::maxBound(IndexKey maxKey, Tuple*& value){
+    return tree_->maxBound(maxKey, value);
+}
+
+bool DBImpl::minBound(IndexKey minKey, Tuple*& value){
+    return tree_->minBound(minKey, value);
+}
+
 bool DBImpl::rangeGet(IndexKey startKey, IndexKey endKey, List<Tuple*>& values){
     tree_->rangeGet(startKey,endKey,values);
 }

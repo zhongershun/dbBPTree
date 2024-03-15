@@ -128,6 +128,8 @@ public:
 
     virtual void rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent) = 0;
 
+    virtual bool boundFind(IndexKey boundKey, bool MaxOrMin,Tuple*& value, InnerNode* parent) = 0;
+
     virtual void scan()=0;
 
     virtual int treeHeight()=0;
@@ -191,6 +193,8 @@ public:
 
     void rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent);
 
+    bool boundFind(IndexKey boundKey, bool MaxOrMin,Tuple*& value, InnerNode* parent);
+
     void scan();
 
     int treeHeight();
@@ -247,6 +251,8 @@ public:
     bool descend(const Msg& m,InnerNode* parent);
 
     void rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent);
+
+    bool boundFind(IndexKey boundKey, bool MaxOrMin,Tuple*& value, InnerNode* parent);
 
     void scan();
 
