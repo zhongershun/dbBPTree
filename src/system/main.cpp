@@ -1,18 +1,8 @@
 #include <iostream>
-#include "Record.h"
-#include<vector>
-#include "db_rw_lock.h"
-#include "db_latch.h"
+#include <vector>
 
 #include <pthread.h>
 #include <unistd.h>
-
-#include "nodePool.h"
-#include "options.h"
-
-#include "db_impl.h"
-
-#include "ThreadPool.h"
 
 #include <ctime>
 #include <cstdarg>
@@ -21,6 +11,24 @@
 
 #include <random>
 #include <chrono>
+
+#include <algorithm>
+
+#include "bptree.h"
+
+// #include "Record.h"
+
+// #include "db_rw_lock.h"
+// #include "db_latch.h"
+
+
+
+// #include "nodePool.h"
+// #include "options.h"
+
+// #include "db_impl.h"
+
+// #include "ThreadPool.h"
 
 using namespace std;
 

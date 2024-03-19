@@ -1,12 +1,11 @@
 #ifndef BPTREE_H
 #define BPTREE_H
 
-// #include "tuple.h"
-// #include "config.h"
 #include "node.h"
-
-#include "options.h"
 #include "nodePool.h"
+
+#include "system/options.h"
+
 
 #include <vector>
 #include <stdint.h>

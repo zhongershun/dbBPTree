@@ -9,11 +9,12 @@ SET (CMAKE_CXX_FLAGS "-std=c++11 -Wno-deprecated-declarations" CACHE INTERNAL "c
 SET (CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE INTERNAL "compiler options" FORCE)
 SET (CMAKE_CXX_FLAGS_RELEASE "-O2" CACHE INTERNAL "compiler options" FORCE)
 
-list(APPEND EXTAR_INCLUDE_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/util
-                                 ${CMAKE_CURRENT_SOURCE_DIR}/system 
-                                 ${CMAKE_CURRENT_SOURCE_DIR}/db
-                                 ${CMAKE_CURRENT_SOURCE_DIR}/storage
-                                 ${CMAKE_CURRENT_SOURCE_DIR}/BPTree)
+# list(APPEND EXTAR_INCLUDE_HEADER ${PROJECT_SOURCE_DIR}/include/util
+#                                  ${PROJECT_SOURCE_DIR}/include/system 
+#                                  ${PROJECT_SOURCE_DIR}/include/db
+#                                  ${PROJECT_SOURCE_DIR}/include/storage
+#                                  ${PROJECT_SOURCE_DIR}/include/BPTree)
+include_directories(${PROJECT_SOURCE_DIR}/include)
 
 file(GLOB_RECURSE SRC_FILES util/*.cpp
                             system/*.cpp

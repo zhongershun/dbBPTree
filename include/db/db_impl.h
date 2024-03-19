@@ -1,8 +1,8 @@
 #ifndef DB_IMPL_H
 #define DB_IMPL_H
 
-#include "nodePool.h"
-#include "tree.h"
+#include "BPTree/nodePool.h"
+#include "BPTree/tree.h"
 
 class DB {
 public:

@@ -1,7 +1,7 @@
 #ifndef UTIL_DB_LATCH_H_
 #define UTIL_DB_LATCH_H_
 
-#include "global.h"
+#include "system/global.h"
 #include <stdint.h>
 #include <time.h>
 

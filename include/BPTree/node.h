@@ -2,11 +2,11 @@
 #define NODE_H
 
 // #include "config.h"
-#include "db_rw_lock.h"
-#include "db_latch.h"
+#include "util/db_rw_lock.h"
+#include "util/db_latch.h"
 
-#include "Record.h"
-#include "List.hpp"
+#include "storage/Record.h"
+#include "storage/List.h"
 // #include <pthread.h>
 #include <mutex>
 

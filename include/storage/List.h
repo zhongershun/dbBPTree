@@ -1,13 +1,14 @@
-#ifndef LIST_HPP
-#define LIST_HPP
+#ifndef LIST_H
+#define LIST_H
 
-#include "comp.h"
+#define MIN_CAP (uint64_t)1 // min capcity of list
+
+#include "util/comp.h"
+
 #include <cstring>
 #include <algorithm>
 #include <cstdint>
 #include <stdio.h>
-
-#define MIN_CAP (uint64_t)1 // min capcity of list
 
 template<typename T, class Comp=DefaultCompare<T>>
 class List
@@ -178,51 +179,23 @@ public:
     const T &operator[](uint64_t index) const;
 
     // 新增方法
-    void push_back(const T &value){
-        add(value);
-    };
+    void push_back(const T &value);
 
-    T &front(){
-        checkRange(0);
-        return values[0];
-    }
+    T &front();
 
-    const T &front() const{
-        checkRange(0);
-        return values[0];
-    }
+    const T &front() const;
 
-    T &back(){
-        int idx = size_ - 1;
-        return values[idx];
-    }
+    T &back();
 
-    const T &back() const{
-        int idx = size_ - 1;
-        return values[idx];
-    }
+    const T &back() const;
 
-    void pop_back(){
-        checkRange(0);
-        int idx = size_-1;
-        removeAt(idx);
-        return;
-    }
+    void pop_back();
 
-    void pop_front(){
-        checkRange(0);
-        int idx = 0;
-        removeAt(0);
-        return;
-    }
+    void pop_front();
 
-    Iterator begin(){
-        return Iterator(this, 0);
-    }
+    Iterator begin();
 
-    Iterator end(){
-        return Iterator(this, size());
-    }
+    Iterator end();
 };
 
 template<typename T, class Comp>
@@ -484,6 +457,62 @@ void List<T, Comp>::initAllocate() {
         printf("cannot malloc");
         // throw "cannot malloc";
     }
+}
+
+template<typename T, class Comp>
+void List<T, Comp>::push_back(const T &value){
+    add(value);
+}
+
+template<typename T, class Comp>
+T& List<T, Comp>::front(){
+    checkRange(0);
+    return values[0];
+}
+
+template<typename T, class Comp>
+const T& List<T, Comp>::front() const{
+    checkRange(0);
+    return values[0];
+}
+
+template<typename T, class Comp>
+T& List<T, Comp>::back(){
+    int idx = size_ - 1;
+    return values[idx];
+}
+
+template<typename T, class Comp>
+const T& List<T, Comp>::back() const{
+    int idx = size_ - 1;
+    return values[idx];
+}
+
+template<typename T, class Comp>
+void List<T,Comp>::pop_back(){
+    checkRange(0);
+    int idx = size_-1;
+    removeAt(idx);
+    return;
+}
+
+
+template<typename T, class Comp>
+void List<T,Comp>::pop_front(){
+    checkRange(0);
+    int idx = 0;
+    removeAt(0);
+    return;
+}
+
+template<typename T, class Comp>
+typename List<T,Comp>::Iterator List<T,Comp>::begin(){
+    return List<T,Comp>::Iterator(this, 0);
+}
+
+template<typename T, class Comp>
+typename List<T,Comp>::Iterator List<T,Comp>::end(){
+    return List<T,Comp>::Iterator(this, size());
 }
 
 #endif // LIST_H

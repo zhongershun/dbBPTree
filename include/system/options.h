@@ -3,7 +3,8 @@
 
 #include <cstddef>
 #include <cstdint>
-#include "comp.h"
+#include "util/comp.h"
+#include "config.h"
 
 class Options
 {

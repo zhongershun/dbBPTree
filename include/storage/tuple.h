@@ -1,7 +1,7 @@
 #ifndef STORAGE_TUPLE_H_
 #define STORAGE_TUPLE_H_
 
-#include "config.h"
+#include "system/config.h"
 
 class Tuple{
     private:

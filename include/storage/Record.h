@@ -6,9 +6,9 @@
 #include <cstddef>
 #include <cassert>
 #include "tuple.h"
-// #include "config.h"
-#include "List.hpp"
-#include "db_rw_lock.h"
+#include "List.h"
+
+#include "util/db_rw_lock.h"
 
 class Record {
 public:

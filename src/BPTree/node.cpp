@@ -1,5 +1,5 @@
-#include "node.h"
-#include "tree.h"
+#include "BPTree/node.h"
+#include "BPTree/tree.h"
 
 #include <iostream>
 

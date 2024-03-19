@@ -2,7 +2,7 @@
 #define NODEPOOL_H
 
 #include "node.h"
-#include "options.h"
+#include "system/options.h"
 // #include "config.h"
 #include <map>
 #include <stdint.h>
