@@ -13,7 +13,7 @@
 #include <chrono>
 
 #include <algorithm>
-
+#include <fstream>
 #include "bptree.h"
 
 // #include "Record.h"
@@ -64,7 +64,7 @@ void printProgressBar(int progress, int id) {
 }
 
 template<class Function>
-void runBlock(Function func, const char *msg) {
+double runBlock(Function func, const char *msg) {
     // clock_t start = clock();
     auto start = std::chrono::high_resolution_clock::now();
     func();
@@ -73,6 +73,7 @@ void runBlock(Function func, const char *msg) {
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     // printf("%s use: %f ms\n", msg, (1000.0 * (end - start)) / CLOCKS_PER_SEC);
     printf("%s use: %f ms\n", msg, (1000.0*duration.count())/(1000.0*1000.0));
+    return (1000.0*duration.count())/(1000.0*1000.0);
 }
 
 void genKV(int count, int order_KV){
@@ -562,7 +563,7 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     }
     cout<<"\033["<<thread_num<<"A";
     cout<<"\033[s";
-    runBlock([&]() {
+    double insert_time_=runBlock([&]() {
     for (auto i = 0; i < thread_num; i++)
     {
         thread_args *t = new thread_args;
@@ -605,7 +606,7 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     }
     cout<<"\033["<<thread_num<<"A";
     cout<<"\033[s";
-    runBlock([&]() {
+    double search_time_=runBlock([&]() {
     for (auto i = 0; i < thread_num; i++)
     {
         thread_args *t = new thread_args;
@@ -628,7 +629,7 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
 
     cout<<"-- rangeSearch start --\n";
 
-    runBlock([&]() {
+    double rangeSearch_time_=runBlock([&]() {
     for (auto i = 0; i < thread_num; i++)
     {
         thread_args *t = new thread_args;
@@ -654,7 +655,7 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     }
     cout<<"\033["<<thread_num<<"A";
     cout<<"\033[s";
-    runBlock([&]() {
+    double delete_time_=runBlock([&]() {
     for (auto i = 0; i < thread_num; i++)
     {
         thread_args *t = new thread_args;
@@ -691,7 +692,18 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     }else{
         cout<<"key order:\t"<<"random\n";
     }
-
+    // ifstream ifs;
+    // ifs.open("../test/result.txt",ios::in);
+    // char buf[1024] = { 0 };
+    // while (ifs.getline(buf,sizeof(buf)))
+	// {
+	// 	cout << buf << endl;
+	// }
+    // ifs.close();
+    ofstream fs;
+    fs.open("../test/result.txt",ios::app);
+    fs<<test_count<<","<<thread_num<<","<<insert_time_<<","<<search_time_<<","<<rangeSearch_time_<<","<<delete_time_<<","<<order_KV<<"\n";
+    fs.close();
 }
 
 void db_min_max_test(){
