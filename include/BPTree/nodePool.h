@@ -3,7 +3,7 @@
 
 #include "node.h"
 #include "system/options.h"
-// #include "config.h"
+#include "system/config.h"
 #include <map>
 #include <stdint.h>
 #include <cstddef>
@@ -24,13 +24,13 @@ public:
 
     ~NodePool();
 
-    bool add_table(const TableID& tbid, NodeFactory *factory);
+    bool add_index(const IndexID& idxid, NodeFactory *factory);
 
-    void del_table(const TableID& tbid);
+    void del_index(const IndexID& idxid);
 
-    void put(const TableID& tbid, bid_t nid, Node* node);
+    void put(const IndexID& idxid, bid_t nid, Node* node);
 
-    Node* get(const TableID& tbid, bid_t nid);
+    Node* get(const IndexID& idxid, bid_t nid);
 
     size_t byteSize();
 
@@ -38,20 +38,20 @@ private:
 
     class PoolKey {
     public:
-        PoolKey(const TableID& t, bid_t n):tbid(t),nid(n){}
+        PoolKey(const IndexID& t, bid_t n):idxid(t),nid(n){}
 
         bool operator<(const PoolKey& other) const {
-            if(tbid==other.tbid){
+            if(idxid==other.idxid){
                 return nid<other.nid;
             }
-            return tbid<other.tbid;
+            return idxid<other.idxid;
         }
-        TableID tbid;
+        IndexID idxid;
         bid_t nid;
     };
 
-    DBrwLock tables_lock_;
-    map<TableID,NodeFactory*> tables_;
+    DBrwLock indexs_lock_;
+    map<IndexID,NodeFactory*> factorys_;
 
     DBrwLock nodes_rwlock_;
     map<PoolKey,Node*> nodes_;

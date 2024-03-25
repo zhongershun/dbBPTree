@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 typedef uint16_t TableID;
+typedef uint64_t IndexID;
 
 typedef char* TupleData;
 

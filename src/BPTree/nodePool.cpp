@@ -6,32 +6,32 @@ NodePool::NodePool(){};
 
 NodePool::~NodePool(){};
 
-bool NodePool::add_table(const TableID& tbid, NodeFactory* factory){
-    tables_lock_.GetWriteLock();
-    if(tables_.find(tbid)!=tables_.end()){
-        tables_lock_.ReleaseWriteLock();
+bool NodePool::add_index(const IndexID& idxid, NodeFactory* factory){
+    indexs_lock_.GetWriteLock();
+    if(factorys_.find(idxid)!=factorys_.end()){
+        indexs_lock_.ReleaseWriteLock();
         return false;
     }
 
-    tables_[tbid] = factory;
-    tables_lock_.ReleaseWriteLock();
+    factorys_[idxid] = factory;
+    indexs_lock_.ReleaseWriteLock();
     return true;
 }
 
-void NodePool::del_table(const TableID& tbid){
-    tables_lock_.GetWriteLock();
-    auto it = tables_.find(tbid);
-    if(it==tables_.end()){
-        tables_lock_.ReleaseWriteLock();
+void NodePool::del_index(const IndexID& idxid){
+    indexs_lock_.GetWriteLock();
+    auto it = factorys_.find(idxid);
+    if(it==factorys_.end()){
+        indexs_lock_.ReleaseWriteLock();
         return;
     }
-    tables_.erase(it);
-    tables_lock_.ReleaseWriteLock();
+    factorys_.erase(it);
+    indexs_lock_.ReleaseWriteLock();
 
     nodes_rwlock_.GetWriteLock();
     for (auto it = nodes_.begin(); it != nodes_.end(); it++)
     {
-        if(it->first.tbid == tbid){
+        if(it->first.idxid == idxid){
             Node* node = it->second;
             delete node;
 
@@ -42,16 +42,16 @@ void NodePool::del_table(const TableID& tbid){
     nodes_rwlock_.ReleaseWriteLock();
 }
 
-void NodePool::put(const TableID& tbid, bid_t nid, Node* node){
-    PoolKey key(tbid,nid);
+void NodePool::put(const IndexID& idxid, bid_t nid, Node* node){
+    PoolKey key(idxid,nid);
     nodes_rwlock_.GetWriteLock();
     assert(nodes_.find(key) == nodes_.end());
     nodes_[key] = node;
     nodes_rwlock_.ReleaseWriteLock();
 }
 
-Node* NodePool::get(const TableID& tbid, bid_t nid){
-    PoolKey key(tbid,nid);
+Node* NodePool::get(const IndexID& idxid, bid_t nid){
+    PoolKey key(idxid,nid);
     Node* node;
     nodes_rwlock_.GetReadLock();
     auto it = nodes_.find(key);
@@ -62,14 +62,14 @@ Node* NodePool::get(const TableID& tbid, bid_t nid){
     }
     nodes_rwlock_.ReleaseReadLock();
 
-    // 若节点不存在，利用存储的table的factory创建一个新的节点
-    tables_lock_.GetReadLock();
+    // 若节点不存在，利用存储的index的factory创建一个新的节点
+    indexs_lock_.GetReadLock();
     NodeFactory* factory=nullptr;
-    auto it2 = tables_.find(tbid);
-    if(it2!=tables_.end()){
+    auto it2 = factorys_.find(idxid);
+    if(it2!=factorys_.end()){
         factory = it2->second;
     }
-    tables_lock_.ReleaseReadLock();
+    indexs_lock_.ReleaseReadLock();
     if(!factory){
         assert(false);
     }

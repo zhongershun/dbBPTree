@@ -51,8 +51,8 @@ class Tree;
 
 class Node {
 public:
-    Node(const TableID table_id, bid_t nid):
-    table_id_(table_id),nid_(nid){
+    Node(const IndexID index_id, bid_t nid):
+    index_id_(index_id),nid_(nid){
         // pthread_rwlock_init(&lock_,nullptr);
         }
 
@@ -63,9 +63,9 @@ public:
         return nid_;
     }
 
-    const TableID& table_id()
+    const IndexID& index_id()
     {
-        return table_id_;
+        return index_id_;
     }
 
     void read_lock()
@@ -100,7 +100,7 @@ public:
     }
 
 protected:
-    TableID table_id_;
+    IndexID index_id_;
     bid_t nid_;
 
     DBrwLock lock_;
@@ -114,8 +114,8 @@ class LeafNode;
 
 class DataNode : public Node {
 public:
-    DataNode(const TableID& table_id, bid_t nid, Tree *tree):
-    Node(table_id,nid),tree_(tree){};
+    DataNode(const IndexID& index_id, bid_t nid, Tree *tree):
+    Node(index_id,nid),tree_(tree){};
 
     ~DataNode() {};
 
@@ -146,8 +146,8 @@ protected:
 
 class SchemaNode : public Node {
 public:
-    SchemaNode(const TableID& table_id)
-    : Node(table_id, NID_SCHEMA)
+    SchemaNode(const IndexID& index_id)
+    : Node(index_id, NID_SCHEMA)
     {
         root_node_id = NID_NIL;
         next_inner_node_id = NID_NIL;
@@ -166,8 +166,8 @@ public:
 
 class InnerNode : public DataNode {
 public:
-    InnerNode(const TableID& table_id, bid_t nid, Tree *tree):
-    DataNode(table_id,nid,tree),
+    InnerNode(const IndexID& index_id, bid_t nid, Tree *tree):
+    DataNode(index_id,nid,tree),
     bottom_(false),
     first_child_(NID_NIL){}
 
@@ -233,8 +233,8 @@ protected:
 
 class LeafNode : public DataNode {
 public:
-    LeafNode(const TableID& table_id, bid_t nid, Tree *tree):
-    DataNode(table_id,nid,tree),
+    LeafNode(const IndexID& index_id, bid_t nid, Tree *tree):
+    DataNode(index_id,nid,tree),
     balancing_(false),
     left_sibling_(NID_NIL),
     right_sibling_(NID_NIL),

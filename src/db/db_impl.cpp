@@ -11,7 +11,7 @@ DBImpl::~DBImpl(){
 
 bool DBImpl::init(){
     nodepool_ = new NodePool();
-    tree_ = new Tree(table_id_,options_,nodepool_);
+    tree_ = new Tree(table_id_,options_,nodepool_,0);
 
     if(!tree_->init()){
         cout<<"tree init error\n";

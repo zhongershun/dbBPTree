@@ -16,13 +16,14 @@ class Tree {
 public:
     Tree(const TableID& table_id,
          const Options& options,
-         NodePool *nodepool)
+         NodePool *nodepool,IndexID index_id)
     : table_id_(table_id),
       options_(options),
       node_factory_(nullptr),
       root_(nullptr),
       schema_(nullptr),
-      nodepool_(nodepool)
+      nodepool_(nodepool),
+      index_id_(index_id)
     {
     }
     
@@ -78,6 +79,7 @@ private:
     };
 
     TableID         table_id_;
+    IndexID         index_id_;
 
     Options         options_;
 

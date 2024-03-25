@@ -5,7 +5,7 @@
 using namespace std;
 
 Tree::~Tree(){
-    nodepool_->del_table(table_id_);
+    nodepool_->del_index(index_id_);
     delete node_factory_;
 }
 
@@ -15,16 +15,16 @@ bool Tree::init(){
     
     node_factory_ = new TreeNodeFactory(this);
 
-    if(!nodepool_->add_table(table_id_,node_factory_)){
+    if(!nodepool_->add_index(index_id_,node_factory_)){
         return false;
     }
     
-    schema_ = new SchemaNode(table_id_);
+    schema_ = new SchemaNode(index_id_);
     schema_->root_node_id = NID_NIL;
     schema_->next_inner_node_id = NID_START;
     schema_->next_leaf_node_id = NID_LEAF_START;
     schema_->tree_depth = 2;
-    nodepool_->put(table_id_, NID_SCHEMA, schema_);
+    nodepool_->put(index_id_, NID_SCHEMA, schema_);
 
     root_ = new_inner_node();
     root_->init_root();
@@ -103,7 +103,7 @@ InnerNode* Tree::new_inner_node(){
     schema_->wlock_unlock();
 
     assert(node);
-    nodepool_->put(table_id_,nid,node);
+    nodepool_->put(index_id_,nid,node);
     return node;
 }
 
@@ -115,13 +115,13 @@ LeafNode* Tree::new_leaf_node(){
     schema_->wlock_unlock();
 
     assert(node);
-    nodepool_->put(table_id_,nid,node);
+    nodepool_->put(index_id_,nid,node);
     return node;
 }
 
 DataNode* Tree::load_node(bid_t nid){
     assert(nid!=NID_NIL&&nid!=NID_SCHEMA);
-    return (DataNode*) nodepool_->get(table_id_,nid);
+    return (DataNode*) nodepool_->get(index_id_,nid);
 }
 
 void Tree::collapse(){
@@ -160,9 +160,9 @@ Node* Tree::TreeNodeFactory::new_node(bid_t nid)
 {
     DataNode *node;
     if (nid >= NID_LEAF_START) {
-        node = new LeafNode(tree_->table_id_, nid, tree_);
+        node = new LeafNode(tree_->index_id_, nid, tree_);
     } else {
-        node = new InnerNode(tree_->table_id_, nid, tree_);
+        node = new InnerNode(tree_->index_id_, nid, tree_);
     }
     return node;
     

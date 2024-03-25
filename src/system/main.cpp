@@ -265,10 +265,10 @@ void rwlock_test(){
 
 void nodePool_test(){
     NodePool *nodePool = new NodePool();
-    TableID tbid = 1;
+    IndexID tbid = 1;
     class FakeNode : public Node {
     public:
-        FakeNode(const TableID& table_name, bid_t nid) : Node(table_name, nid), data(0) {}
+        FakeNode(const IndexID& index_name, bid_t nid) : Node(index_name, nid), data(0) {}
 
         bool find(IndexKey key, Tuple& value, InnerNode* parent) { return false; }
 
@@ -283,17 +283,17 @@ void nodePool_test(){
     };
     class FakeNodeFactory: public NodeFactory {
     public:
-        FakeNodeFactory(const TableID& tbid):
+        FakeNodeFactory(const IndexID& tbid):
         tbid_(tbid){}
         Node* new_node(bid_t nid) {
             return new FakeNode(tbid_, nid);
         }
-        TableID tbid_;
+        IndexID tbid_;
     };
 
     NodeFactory *factory = new FakeNodeFactory(tbid);
 
-    nodePool->add_table(tbid,factory);
+    nodePool->add_index(tbid,factory);
     for (int i = 0; i < 3; i++)
     {
         Node *nod = new FakeNode(tbid,i);
@@ -303,7 +303,7 @@ void nodePool_test(){
     {
         assert(nodePool->get(tbid,i));
     }
-    nodePool->del_table(tbid);
+    nodePool->del_index(tbid);
 
 }
 
