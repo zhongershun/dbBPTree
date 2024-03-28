@@ -12,6 +12,6 @@ typedef char* TupleData;
 
 typedef uint64_t IndexKey;
 
-
+#define ENBALE_BPTREE_BUFFER true
 
 #endif

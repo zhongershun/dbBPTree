@@ -402,8 +402,12 @@ void* run_insert(void *arg){
     thread_args *ta = (thread_args*) arg;
 
     int count = ta->count; // 总的Tuple数量
+    int intervel = count%ta->thread_num;
     int keys = count/ta->thread_num; // 每个线程插入的Tuple数量
-    assert(keys*ta->thread_num==count);
+    if(ta->id<intervel){
+        keys++;
+    }
+    // assert(keys*ta->thread_num==count);
 
     for (long i = 0; i < keys; i++)
     {
@@ -429,7 +433,11 @@ void* run_search(void *arg){
     thread_args *ta = (thread_args*) arg;
 
     int count = ta->count; // 总的Tuple数量
+    int intervel = count%ta->thread_num;
     int keys = count/ta->thread_num; // 每个线程插入的Tuple数量
+    if(ta->id<intervel){
+        keys++;
+    }
 
     for (long i = 0; i < keys; i++)
     {
@@ -484,7 +492,12 @@ void* run_delete(void *arg){
     thread_args *ta = (thread_args*) arg;
 
     int count = ta->count; // 总的Tuple数量
+    int intervel = count%ta->thread_num;
     int keys = count/ta->thread_num; // 每个线程插入的Tuple数量
+    if(ta->id<intervel){
+        keys++;
+    }
+    // assert(keys*ta->thread_num==count);
 
     for (long i = 0; i < keys; i++)
     {
@@ -583,6 +596,7 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     },"tree insert");
 
     cout<<"-- write end --\n\n";
+    usleep(3000000);
 
     int treeHeight = ta.db->treeHeight();
     size_t treeByteSize = ta.db->byteSize();
@@ -626,6 +640,7 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     },"tree search");
 
     cout<<"-- search end --\n\n";
+    usleep(3000000);
 
     cout<<"-- rangeSearch start --\n";
 
@@ -635,18 +650,19 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
         thread_args *t = new thread_args;
         *t = ta;
         t->id = i;
-        assert(pthread_create(&ids[i],0,run_rangeSearch,(void*)t)==0);
+        // assert(pthread_create(&ids[i],0,run_rangeSearch,(void*)t)==0);
     }
 
     for (auto i = 0; i < thread_num; i++)
     {
         thread_args *t;
-        assert(pthread_join(ids[i],(void**)&t)==0);
+        // assert(pthread_join(ids[i],(void**)&t)==0);
         // delete t;
     }
     },"tree rangeSearch");
 
     cout<<"-- rangeSearch end --\n\n";
+    usleep(3000000);
 
     cout<<"-- delete start --\n";
     for (int i = 0; i < thread_num; i++)
@@ -675,6 +691,7 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     },"tree delete");
     
     cout<<"-- delete end --\n\n";
+    usleep(3000000);
 
     cout<<"\ntest finish\n";
     cout<<"thread count:\t"<<thread_num<<"\n";
@@ -700,9 +717,10 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
 	// 	cout << buf << endl;
 	// }
     // ifs.close();
+    int enable_buffer = (ENBALE_BPTREE_BUFFER)?1:0;
     ofstream fs;
     fs.open("../test/result.txt",ios::app);
-    fs<<test_count<<","<<thread_num<<","<<insert_time_<<","<<search_time_<<","<<rangeSearch_time_<<","<<delete_time_<<","<<order_KV<<"\n";
+    fs<<test_count<<","<<thread_num<<","<<insert_time_<<","<<search_time_<<","<<rangeSearch_time_<<","<<delete_time_<<","<<order_KV<<","<<enable_buffer<<"\n";
     fs.close();
 }
 

@@ -200,7 +200,7 @@ public:
     int find(IndexKey key){
         Msg keyMsg(_Msg,key,nullptr);
         int idx = msgs_.binaryFind(keyMsg);
-        assert(idx>=0&&idx<msgs_.size());
+        assert(idx>=0&&idx<=msgs_.size());
         return idx;
     }
 
@@ -211,6 +211,7 @@ public:
 
     void clear(){
         msgs_.clear();
+        count_ = 0;
     }
 
     size_t count(){

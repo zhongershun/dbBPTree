@@ -7,6 +7,7 @@
 
 #include "storage/Record.h"
 #include "storage/List.h"
+#include "system/config.h"
 // #include <pthread.h>
 #include <mutex>
 
@@ -24,11 +25,12 @@ class Pivot { // 节点中用于存储中间节点的k以及其子节点的id
 public:
     Pivot() {}
     
-    Pivot(IndexKey k, bid_t c)
-    : key(k), child(c){}
+    Pivot(IndexKey k, bid_t c, MsgBuf *mb)
+    : key(k), child(c), msgbuf(mb){}
 
     IndexKey    key;
     bid_t       child;
+    MsgBuf      *msgbuf;
 };
 
 inline bool operator==(const Pivot& a, const Pivot& b){
@@ -125,6 +127,8 @@ public:
     virtual void lock_path(IndexKey key, List<DataNode*>& path) = 0;
 
     virtual bool descend(const Msg& mb, InnerNode* parent) = 0;
+    virtual bool descend(MsgBuf* mb, InnerNode* parent) = 0;
+    virtual bool descend_no_fix(MsgBuf* mb) = 0;
 
     virtual void rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent) = 0;
 
@@ -169,7 +173,8 @@ public:
     InnerNode(const IndexID& index_id, bid_t nid, Tree *tree):
     DataNode(index_id,nid,tree),
     bottom_(false),
-    first_child_(NID_NIL){}
+    first_child_(NID_NIL),
+    first_msgbuf_(nullptr){}
 
     virtual ~InnerNode();
 
@@ -190,6 +195,8 @@ public:
     void lock_path(IndexKey key, List<DataNode*>& path);
 
     bool descend(const Msg& m, InnerNode* parent);
+    bool descend(MsgBuf* mb, InnerNode* parent);
+    bool descend_no_fix(MsgBuf* mb);
 
     void rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent);
 
@@ -209,6 +216,7 @@ protected:
     friend class LeafNode;
 
     bool write(const Msg& m);
+    void maybe_descend();
     void maybe_descend(const Msg& m);
 
     int find_pivot(IndexKey k);
@@ -218,6 +226,11 @@ protected:
     bid_t child(int idx);
     void set_child(int idx, bid_t c);
     
+    // msgbuf用
+    void insert_msgbuf(const Msg& m, int idx);
+    MsgBuf* msgbuf(int idx);
+    int descend_msgbuf_idx();
+    
     
     void split(List<DataNode*>& path);
 
@@ -225,7 +238,8 @@ protected:
     bool bottom_;
 
     bid_t first_child_;
-    // MsgBuf* MsgBuf;
+    MsgBuf* first_msgbuf_;
+    size_t msgcnt_;
     
     List<Pivot> pivots_;
 };
@@ -249,6 +263,8 @@ public:
     void lock_path(IndexKey key, List<DataNode*>& path);
 
     bool descend(const Msg& m,InnerNode* parent);
+    bool descend(MsgBuf* mb,InnerNode* parent);
+    bool descend_no_fix(MsgBuf* mb);
 
     void rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& values, InnerNode* parent);
 
@@ -270,6 +286,8 @@ protected:
     void split(IndexKey anchor);
     
     void merge(IndexKey anchor);
+
+    void move_to_right(const Msg& m);
     
 
 private:

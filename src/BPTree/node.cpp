@@ -18,11 +18,13 @@ InnerNode::~InnerNode(){
 }
 
 void InnerNode::init_root(){
+    first_msgbuf_ = new MsgBuf();
+    bottom_ = true;
     bottom_ = true;
 }
 
 int InnerNode::find_pivot(IndexKey k){
-    Pivot keyPivot(k,NID_NIL);
+    Pivot keyPivot(k,NID_NIL,nullptr);
     int res =  pivots_.binaryFind(keyPivot);
     if(res==pivots_.size()){
         return res;
@@ -40,7 +42,9 @@ int InnerNode::find_pivot(IndexKey k){
 
 void InnerNode::add_pivot(IndexKey key, bid_t nid, List<DataNode*>& path){
     assert(path.back()==this);
-    Pivot newPivot(key,nid);
+    MsgBuf* mb = new MsgBuf();
+
+    Pivot newPivot(key,nid,mb);
     int idx = pivots_.binaryFind(newPivot);
     pivots_.insert(idx,newPivot);
 
@@ -59,6 +63,8 @@ void InnerNode::rm_pivot(bid_t nid, List<DataNode*>& path){
     assert(path.back()==this);
 
     if(first_child_==nid){
+        assert(first_msgbuf_->count()==0);
+        delete first_msgbuf_;
         if(pivots_.size()==0){ //当前节点移除pivot之后不存在值，此时该节点也需要移除
             path.back()->wlock_unlock();
             path.pop_back();
@@ -72,6 +78,7 @@ void InnerNode::rm_pivot(bid_t nid, List<DataNode*>& path){
             return;
         }
         first_child_ = pivots_[0].child;
+        first_msgbuf_ = pivots_[0].msgbuf;
         pivots_.removeAt(0);
     }else{
         int idx = 0;
@@ -84,6 +91,8 @@ void InnerNode::rm_pivot(bid_t nid, List<DataNode*>& path){
             }
         }
         assert(idx>=0&&idx<pivots_.size());
+        assert(pivots_[idx].msgbuf->count()==0);
+        delete pivots_[idx].msgbuf;
         pivots_.removeAt(idx);
     }
     while (path.size())
@@ -105,6 +114,7 @@ void InnerNode::split(List<DataNode*>& path){
     assert(ni);
 
     ni->first_child_ = pivots_[n].child;
+    ni->first_msgbuf_ = pivots_[n].msgbuf;
 
     if(n+1>=pivots_.size()){ // 分裂之后ni节点上无pivot
         ni->pivots_.clear();
@@ -115,6 +125,14 @@ void InnerNode::split(List<DataNode*>& path){
     
     int removeCount_  = pivots_.size()-n;
     pivots_.removeRange(n,removeCount_);
+    size_t msgcnt1 = 0;
+    msgcnt1+=ni->first_msgbuf_->count();
+    for (int i = 0; i < ni->pivots_.size(); i++)
+    {
+        msgcnt1 += ni->pivots_[i].msgbuf->count();
+    }
+    ni->msgcnt_ = msgcnt1;
+    msgcnt_ -= msgcnt1;
 
     path.back()->wlock_unlock();
     path.pop_back();
@@ -125,8 +143,13 @@ void InnerNode::split(List<DataNode*>& path){
         assert(newRoot);
         newRoot->bottom_ = false;
         newRoot->first_child_ = nid_;
+        MsgBuf *mb0 = new MsgBuf();
         newRoot->pivots_.clear();
-        newRoot->pivots_.add(Pivot(k,ni->nid_));
+        newRoot->first_msgbuf_ = mb0;
+        newRoot->msgcnt_ = mb0->count();
+        MsgBuf *mb1 = new MsgBuf();
+        newRoot->pivots_.add(Pivot(k,ni->nid_,mb1));
+        newRoot->msgcnt_ += mb1->count();
         tree_->pileup(newRoot);
 
     }else{
@@ -147,6 +170,16 @@ bid_t InnerNode::child(int idx){
     }
 }
 
+MsgBuf* InnerNode::msgbuf(int idx){
+    assert(idx >= 0 && (size_t)idx<=pivots_.size());
+    if (idx==0)
+    {
+        return first_msgbuf_;
+    }else{
+        return pivots_[idx-1].msgbuf;
+    }
+}
+
 void InnerNode::set_child(int idx, bid_t nid){
     assert(idx>=0&&(size_t)idx<=pivots_.size());
     if(idx==0){
@@ -156,6 +189,33 @@ void InnerNode::set_child(int idx, bid_t nid){
     }
 }
 
+void InnerNode::insert_msgbuf(const Msg& m, int idx){
+    MsgBuf *mb = msgbuf(idx);
+    assert(mb);
+    // mb->write_lock();
+    size_t oldcnt = mb->count();
+    mb->write(m);
+    msgcnt_ = msgcnt_+mb->count() - oldcnt;
+    // mb->wlock_unlock();
+}
+
+int InnerNode::descend_msgbuf_idx(){
+    int idx = 0;
+    int ret = 0;
+    size_t maxcnt = first_msgbuf_->count();
+    for (size_t i = 0; i < pivots_.size(); i++)
+    {
+        idx++;
+        if(pivots_[i].msgbuf->count()>maxcnt){
+            pivots_[i].msgbuf->read_lock();
+            maxcnt = pivots_[i].msgbuf->count();
+            pivots_[i].msgbuf->rLock_unlock();
+            ret = idx;
+        }
+    }
+    return ret;
+}
+
 bool InnerNode::find(IndexKey key, Tuple*& value, InnerNode* parent){
     bool ret = false;
     read_lock();
@@ -163,6 +223,21 @@ bool InnerNode::find(IndexKey key, Tuple*& value, InnerNode* parent){
         parent->rLock_unlock();
     }
     int idx = find_pivot(key);
+    MsgBuf* buf = msgbuf(idx);
+    if(buf&&buf->count()!=0){
+        buf->read_lock();
+        int res = buf->find(key);
+        if(res>=0&&res<buf->count()){
+            if(key==buf->get(res).key){
+                value = buf->get(res).value;
+                ret = true;
+                buf->rLock_unlock();
+                rLock_unlock();
+                return ret;
+            }
+        }
+        buf->rLock_unlock();
+    }
     bid_t chidx = child(idx);
     if(chidx==NID_NIL){
         assert(idx==0);
@@ -212,11 +287,21 @@ void InnerNode::rangeFind(IndexKey startKey, IndexKey endKey, List<Tuple*>& valu
     return;
 }
 
-void InnerNode::lock_path(IndexKey key, List<DataNode*>& path){
+void InnerNode::lock_path(IndexKey key, List<DataNode*>& path){ //lock_path保证在锁住path的过程中将path涉及的buf中的msg全部下刷
     int idx = find_pivot(key);
     // assert(idx>=0&&idx<pivots_.size());
     bid_t chidx = child(idx);
     DataNode* ch = tree_->load_node(chidx);
+    if(ENBALE_BPTREE_BUFFER){
+    MsgBuf *mb = msgbuf(idx);
+    size_t oldcnt = mb->count();
+    if(mb->count()){
+        printf("msg in path");
+        ch->descend_no_fix(mb);
+        mb->clear();
+        msgcnt_=msgcnt_+mb->count()-oldcnt;
+    }
+    }
     assert(ch);
     ch->write_lock();
     path.push_back(ch);
@@ -224,9 +309,56 @@ void InnerNode::lock_path(IndexKey key, List<DataNode*>& path){
 }
 
 bool InnerNode::write(const Msg& m){
-    read_lock();
-    maybe_descend(m);
+    if(ENBALE_BPTREE_BUFFER){
+        tree_->count_mutex_.GetLatch();
+        // read_lock();
+    }else{
+        read_lock();
+    }
+    IndexKey k = m.key;
+    if(ENBALE_BPTREE_BUFFER){
+        insert_msgbuf(m,find_pivot(k));
+        maybe_descend();
+        tree_->count_mutex_.ReleaseLatch();
+    }else{
+        maybe_descend(m);
+    }
     return true;
+}
+
+void InnerNode::maybe_descend(){
+    int idx = -1;
+    if(msgcnt_>=tree_->options_.inner_node_msg_number){
+        idx = descend_msgbuf_idx();
+    }else{
+        // rLock_unlock();
+        return;
+    }
+
+    assert(idx>=0);
+    MsgBuf* mb = msgbuf(idx);
+    bid_t nid = child(idx);
+
+    DataNode *node = nullptr;
+    if(nid==NID_NIL){
+        // rLock_unlock();
+        // write_lock();
+        // idx = descend_msgbuf_idx();
+        // mb = msgbuf(idx);
+        // nid = child(idx);
+        // if(nid==NID_NIL){
+            node = tree_->new_leaf_node();
+            set_child(idx,node->nid());
+        // }else{
+        //     node = tree_->load_node(nid);
+        // }
+        // wlock_unlock();
+        // read_lock();
+    }else{
+        node = tree_->load_node(nid);
+    }
+    assert(node);
+    node->descend(mb,this);
 }
 
 void InnerNode::maybe_descend(const Msg& m){
@@ -263,6 +395,76 @@ bool InnerNode::descend(const Msg& m,InnerNode* parent){
     read_lock();
     parent->rLock_unlock();
     maybe_descend(m);
+    return true;
+}
+
+bool InnerNode::descend(MsgBuf* mb,InnerNode* parent){
+    // read_lock();
+    // mb->write_lock();
+    size_t oldcnt = mb->count();
+    if(oldcnt==0){
+        // mb->wlock_unlock();
+        // parent->rLock_unlock();
+        // rLock_unlock();
+        return true;
+    }
+    int i = 0; //mb的idx
+    int j = 0; //pivot的idx
+    while (i<mb->count() && j<pivots_.size())
+    {
+        if(mb->get(i).key<pivots_[j].key){
+            insert_msgbuf(mb->get(i),j);
+            i++;
+        }else{
+            j++;
+        }
+    }
+    if(i<mb->count()){
+        while (i<mb->count())
+        {
+            insert_msgbuf(mb->get(i),j);
+            i++;
+        }
+    }
+    mb->clear();
+    parent->msgcnt_ = parent->msgcnt_+mb->count()-oldcnt;
+    // mb->wlock_unlock();
+    // parent->rLock_unlock();
+    // maybe_descend();
+    return true;
+}
+
+bool InnerNode::descend_no_fix(MsgBuf* mb){
+    // read_lock();
+    // mb->write_lock();
+    size_t oldcnt = mb->count();
+    if(oldcnt==0){
+        // mb->wlock_unlock();
+        // rLock_unlock();
+        return true;
+    }
+    int i = 0; //mb的idx
+    int j = 0; //pivot的idx
+    while (i<mb->count() && j<pivots_.size())
+    {
+        if(mb->get(i).key<pivots_[j].key){
+            insert_msgbuf(mb->get(i),j);
+            i++;
+        }else{
+            j++;
+        }
+    }
+    if(i<mb->count()){
+        while (i<mb->count())
+        {
+            insert_msgbuf(mb->get(i),j);
+            i++;
+        }
+    }
+    mb->clear();
+    msgcnt_ = msgcnt_+mb->count()+oldcnt;
+    // mb->wlock_unlock();
+    // rLock_unlock();
     return true;
 }
 
@@ -312,7 +514,7 @@ void LeafNode::split(IndexKey anchor){
             path.back()->wlock_unlock();
             path.pop_back();
         }
-        balancing_ = false;
+        // balancing_ = false;
         return;
     }
 
@@ -322,7 +524,7 @@ void LeafNode::split(IndexKey anchor){
             path.back()->wlock_unlock();
             path.pop_back();
         }
-        balancing_ = false;
+        // balancing_ = false;
         return;
     }
 
@@ -377,7 +579,7 @@ void LeafNode::merge(IndexKey anchor){
             path.back()->wlock_unlock();
             path.pop_back();
         }
-        balancing_ = false;
+        // balancing_ = false;
         return;
     }
 
@@ -387,7 +589,7 @@ void LeafNode::merge(IndexKey anchor){
             path.back()->wlock_unlock();
             path.pop_back();
         }
-        balancing_ = false;
+        // balancing_ = false;
         return;
     }
 
@@ -796,8 +998,8 @@ bool LeafNode::descend(const Msg& m,InnerNode* parent){
             // plan 2:
             parent->rLock_unlock();
             wlock_unlock();
-            // return tree_->root_->write(m);
-            return tree_->put(m.key,m.value);
+            return tree_->root_->write(m);
+            // return tree_->put(m.key,m.value);
        
         }else{
             // right_sibling_node_->rLock_unlock();
@@ -873,6 +1075,205 @@ bool LeafNode::descend(const Msg& m,InnerNode* parent){
     return true;
 }
 
+bool LeafNode::descend(MsgBuf* mb, InnerNode * parent){
+    write_lock();
+
+    // mb->write_lock();
+    size_t oldcnt = mb->count();
+    if(oldcnt==0){
+        // mb->wlock_unlock();
+        // parent->rLock_unlock();
+        wlock_unlock();
+        return true;
+    }
+    for (int i = oldcnt-1; i >= 0; i--)
+    {
+        if(mb->get(i).key<=max_){
+            break;
+        }else{
+            if(right_sibling_!=NID_NIL){
+                LeafNode* right_sibling_node_ = (LeafNode* )tree_->load_node(right_sibling_);
+                if(mb->get(i).key>right_sibling_node_->first_key_){
+                    right_sibling_node_->move_to_right(mb->get(i));
+                    mb->msgs_.pop_back();
+                    mb->count_--;
+                }else{
+                    break;
+                }
+            }else{
+                break;
+            }
+        }
+    }
+    if(mb->count()){
+        // mb->wlock_unlock();
+        // parent->rLock_unlock();
+        wlock_unlock();
+        return true;
+    }
+    IndexKey anchor = mb->get(0).key;
+    int i = 0;
+    RecordBucket res;
+    int beforecount = records_.size();
+    RecordBucket::Iterator jt = records_.get_iterator();
+    bool added = false;
+    while (i<mb->count()&&jt.valid())
+    {
+        if(mb->get(i).key<jt.record().key){
+            // added = true;
+            if(mb->get(i).type_==Put){
+                res.push_back(Record(mb->get(i).key,mb->get(i).value));
+            }
+            i++;
+        }else if(mb->get(i).key>jt.record().key){
+            res.push_back(jt.record());
+            jt.next();
+        }else{
+            // added = true;
+            if(mb->get(i).type_==Put){
+                res.push_back(Record(mb->get(i).key,mb->get(i).value));
+            }
+            jt.next();
+            i++;
+            // break;
+        }
+    }
+    while (jt.valid())
+    {
+        res.push_back(jt.record());
+        jt.next();
+    }
+    while(i<mb->count()){       
+        if(mb->get(i).type_==Put){
+            res.push_back(Record(mb->get(i).key,mb->get(i).value));
+        }
+        i++;
+    }
+    records_.swap(res);
+    int aftercount = records_.size();
+
+    if(aftercount){
+        // if((*records_.bucket_.records)[0].key<=first_key_){
+        first_key_ = (*records_.bucket_.records)[0].key;
+        // }
+        min_ = (*records_.bucket_.records)[0].key;
+        assert(min_==first_key_);
+        max_ = (*records_.bucket_.records)[records_.size()-1].key;
+    }else{
+        first_key_ = -1;
+        min_ = -1;
+        max_ = -1;
+    }
+    
+    mb->clear();
+    parent->msgcnt_ = parent->msgcnt_+mb->count()-oldcnt;
+    // mb->wlock_unlock();
+    // parent->rLock_unlock();
+    
+    if(records_.size()==0){
+        merge(anchor);
+    }else if(records_.size()>1&&records_.size() > tree_->options_.leaf_node_record_count){
+        split(anchor);
+    }else{
+        wlock_unlock();
+    }
+    return true;
+}
+
+bool LeafNode::descend_no_fix(MsgBuf* mb){
+    write_lock();
+
+    // mb->write_lock();
+    size_t oldcnt = mb->count();
+    if(oldcnt==0){
+        // mb->wlock_unlock();
+        wlock_unlock();
+        return true;
+    }
+    for (int i = oldcnt-1; i >= 0; i--)
+    {
+        if(mb->get(i).key<=max_){
+            break;
+        }else{
+            if(right_sibling_!=NID_NIL){
+                LeafNode* right_sibling_node_ = (LeafNode* )tree_->load_node(right_sibling_);
+                if(mb->get(i).key>right_sibling_node_->first_key_){
+                    right_sibling_node_->move_to_right(mb->get(i));
+                    mb->msgs_.pop_back();
+                    mb->count_--;
+                }else{
+                    break;
+                }
+            }else{
+                break;
+            }
+        }
+    }
+    if(mb->count()){
+        // mb->wlock_unlock();
+        wlock_unlock();
+        return true;
+    }
+    IndexKey anchor = mb->get(0).key;
+    int i = 0;
+    RecordBucket res;
+    int beforecount = records_.size();
+    RecordBucket::Iterator jt = records_.get_iterator();
+    bool added = false;
+    while (i<mb->count()&&jt.valid())
+    {
+        if(mb->get(i).key<jt.record().key){
+            // added = true;
+            if(mb->get(i).type_==Put){
+                res.push_back(Record(mb->get(i).key,mb->get(i).value));
+            }
+            i++;
+        }else if(mb->get(i).key>jt.record().key){
+            res.push_back(jt.record());
+            jt.next();
+        }else{
+            // added = true;
+            if(mb->get(i).type_==Put){
+                res.push_back(Record(mb->get(i).key,mb->get(i).value));
+            }
+            jt.next();
+            i++;
+            break;
+        }
+    }
+    while (jt.valid())
+    {
+        res.push_back(jt.record());
+        jt.next();
+    }
+    while(i<mb->count()){   
+        if(mb->get(i).type_==Put){
+            res.push_back(Record(mb->get(i).key,mb->get(i).value));
+        }
+        i++;
+    }
+    records_.swap(res);
+    int aftercount = records_.size();
+
+    if(aftercount){
+        // if((*records_.bucket_.records)[0].key<=first_key_){
+        first_key_ = (*records_.bucket_.records)[0].key;
+        // }
+        min_ = (*records_.bucket_.records)[0].key;
+        assert(min_==first_key_);
+        max_ = (*records_.bucket_.records)[records_.size()-1].key;
+    }else{
+        first_key_ = -1;
+        min_ = -1;
+        max_ = -1;
+    }
+    
+    mb->clear();
+    // mb->wlock_unlock();
+    wlock_unlock();
+    return true;
+}
+
 void LeafNode::lock_path(IndexKey key, List<DataNode*>& path)
 {
 }
@@ -882,12 +1283,18 @@ void InnerNode::scan(){
     if(first_child_!=NID_NIL){
         bid_t chidx = first_child_;
         DataNode *ch = tree_->load_node(chidx);
+        // if(first_msgbuf_){
+        //     ch->descend_no_fix(first_msgbuf_);
+        // }
         ch->scan();
     }
     for (int i = 0; i < pivots_.size(); i++)
     {
         bid_t chidx = pivots_[i].child;
         DataNode *ch = tree_->load_node(chidx);
+        // if(pivots_[i].msgbuf){
+        //     ch->descend_no_fix(pivots_[i].msgbuf);
+        // }
         ch->scan();
     }
 }
@@ -917,4 +1324,65 @@ int LeafNode::treeHeight(){
 
 size_t LeafNode::byteSize(){
     return 1+8+8+8+8+records_.length();
+}
+
+void LeafNode::move_to_right(const Msg& m){
+    // printf("\033[31m touch move_to_right \033[0m");
+    write_lock();
+    if(right_sibling_!=NID_NIL&&m.key>max_){
+            LeafNode* right_sibling_node_ = (LeafNode* )tree_->load_node(right_sibling_);
+            if(m.key>=right_sibling_node_->first_key_){
+                wlock_unlock();
+                return right_sibling_node_->move_to_right(m);
+            }
+    }
+    RecordBucket res;
+    Record keyRecord(m.key,m.value);
+    int beforecount = records_.size();
+    RecordBucket::Iterator jt = records_.get_iterator();
+    bool added = false;
+    while (jt.valid())
+    {
+        if(m.key<jt.record().key){
+            added = true;
+            if(m.type_==Put){
+                res.push_back(keyRecord);
+            }
+            break;
+        }else if(m.key>jt.record().key){
+            res.push_back(jt.record());
+            jt.next();
+        }else{
+            added = true;
+            if(m.type_==Put){
+                res.push_back(keyRecord);
+            }
+            jt.next();
+            break;
+        }
+    }
+    while (jt.valid())
+    {
+        res.push_back(jt.record());
+        jt.next();
+    }
+    if(!added){
+        if(m.type_==Put){
+            res.push_back(keyRecord);
+        }
+    }
+    records_.swap(res);
+    int aftercount = records_.size();
+
+    if(aftercount){
+        first_key_ = (*records_.bucket_.records)[0].key;
+        min_ = (*records_.bucket_.records)[0].key;
+        assert(min_==first_key_);
+        max_ = (*records_.bucket_.records)[records_.size()-1].key;
+    }else{
+        first_key_ = -1;
+        min_ = -1;
+        max_ = -1;
+    }
+    wlock_unlock();
 }
