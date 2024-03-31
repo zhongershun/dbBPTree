@@ -184,7 +184,7 @@ void record_test(){
     RecordBucket rb;
     rb.set_bucket(&records);
     cout<<"size: "<<rb.size()<<"\n";
-    cout<<"length: "<<rb.length()<<"\n";
+    // cout<<"length: "<<rb.length()<<"\n";
     for (int i = 0; i < count; i++)
     {
         IndexKey k = i;
@@ -193,27 +193,27 @@ void record_test(){
         rb.push_back(record);
     }
     cout<<"size: "<<rb.size()<<"\n";
-    cout<<"length: "<<rb.length()<<"\n";
+    // cout<<"length: "<<rb.length()<<"\n";
 
     RecordBucket rb2;
     int res = rb.split(rb2);
     cout<<"size: "<<rb.size()<<"\n";
-    cout<<"length: "<<rb.length()<<"\n";
+    // cout<<"length: "<<rb.length()<<"\n";
     cout<<"size: "<<rb2.size()<<"\n";
-    cout<<"length: "<<rb2.length()<<"\n";
+    // cout<<"length: "<<rb2.length()<<"\n";
     cout<<"res: "<<res<<"\n";
 
     RecordBucket rb3;
     int res2 = rb2.split(rb3);
     cout<<"size: "<<rb2.size()<<"\n";
-    cout<<"length: "<<rb2.length()<<"\n";
+    // cout<<"length: "<<rb2.length()<<"\n";
     cout<<"res: "<<res2<<"\n";
 
     rb.swap(rb2);
     cout<<"size: "<<rb.size()<<"\n";
-    cout<<"length: "<<rb.length()<<"\n";
+    // cout<<"length: "<<rb.length()<<"\n";
     cout<<"size: "<<rb2.size()<<"\n";
-    cout<<"length: "<<rb2.length()<<"\n";
+    // cout<<"length: "<<rb2.length()<<"\n";
 }
 
 void *run_read(void* arg){
@@ -596,14 +596,14 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     },"tree insert");
 
     cout<<"-- write end --\n\n";
-    usleep(3000000);
+    usleep(300000);
 
     int treeHeight = ta.db->treeHeight();
-    size_t treeByteSize = ta.db->byteSize();
-    size_t poolByteSize = ta.db->poolSize();
+    // size_t treeByteSize = ta.db->byteSize();
+    // size_t poolByteSize = ta.db->poolSize();
 
-    cout<<"now Bplustree mem occupied:\t"<<treeByteSize<<"\n\n";
-    cout<<"now nodepool mem occupied:\t"<<poolByteSize<<"\n\n";
+    // cout<<"now Bplustree mem occupied:\t"<<treeByteSize<<"\n\n";
+    // cout<<"now nodepool mem occupied:\t"<<poolByteSize<<"\n\n";
 
     assert(treeHeight!=0);
     
@@ -640,7 +640,7 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     },"tree search");
 
     cout<<"-- search end --\n\n";
-    usleep(3000000);
+    usleep(300000);
 
     cout<<"-- rangeSearch start --\n";
 
@@ -662,7 +662,7 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     },"tree rangeSearch");
 
     cout<<"-- rangeSearch end --\n\n";
-    usleep(3000000);
+    usleep(300000);
 
     cout<<"-- delete start --\n";
     for (int i = 0; i < thread_num; i++)
@@ -691,7 +691,7 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     },"tree delete");
     
     cout<<"-- delete end --\n\n";
-    usleep(3000000);
+    usleep(300000);
 
     cout<<"\ntest finish\n";
     cout<<"thread count:\t"<<thread_num<<"\n";
@@ -702,8 +702,8 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     cout<<"value type:\t"<<"Tuple("<<tupleSize<<") = "<<tupleSize<<" Bytes"<<"\n";
     cout<<"value size:\t"<<test_count<<" Bytes\n\n";
     cout<<"data size:\t"<<test_count*sizeof(IndexKey)+test_count*tupleSize<<" Bytes\n\n";
-    cout<<"max Bplustree mem occupied:\t"<<treeByteSize<<"\n\n";
-    cout<<"max nodepool mem occupied:\t"<<poolByteSize<<"\n\n";
+    // cout<<"max Bplustree mem occupied:\t"<<treeByteSize<<"\n\n";
+    // cout<<"max nodepool mem occupied:\t"<<poolByteSize<<"\n\n";
     if(order_KV){
         cout<<"key order:\t"<<"order\n";
     }else{

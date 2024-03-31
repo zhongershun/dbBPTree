@@ -192,11 +192,11 @@ void InnerNode::set_child(int idx, bid_t nid){
 void InnerNode::insert_msgbuf(const Msg& m, int idx){
     MsgBuf *mb = msgbuf(idx);
     assert(mb);
-    // mb->write_lock();
+    mb->write_lock();
     size_t oldcnt = mb->count();
     mb->write(m);
     msgcnt_ = msgcnt_+mb->count() - oldcnt;
-    // mb->wlock_unlock();
+    mb->wlock_unlock();
 }
 
 int InnerNode::descend_msgbuf_idx(){
@@ -296,7 +296,7 @@ void InnerNode::lock_path(IndexKey key, List<DataNode*>& path){ //lock_path保�
     MsgBuf *mb = msgbuf(idx);
     size_t oldcnt = mb->count();
     if(mb->count()){
-        printf("msg in path");
+        // printf("msg in path");
         ch->descend_no_fix(mb);
         mb->clear();
         msgcnt_=msgcnt_+mb->count()-oldcnt;
@@ -310,8 +310,8 @@ void InnerNode::lock_path(IndexKey key, List<DataNode*>& path){ //lock_path保�
 
 bool InnerNode::write(const Msg& m){
     if(ENBALE_BPTREE_BUFFER){
-        tree_->count_mutex_.GetLatch();
-        // read_lock();
+        // tree_->count_mutex_.GetLatch();
+        read_lock();
     }else{
         read_lock();
     }
@@ -319,7 +319,7 @@ bool InnerNode::write(const Msg& m){
     if(ENBALE_BPTREE_BUFFER){
         insert_msgbuf(m,find_pivot(k));
         maybe_descend();
-        tree_->count_mutex_.ReleaseLatch();
+        // tree_->count_mutex_.ReleaseLatch();
     }else{
         maybe_descend(m);
     }
@@ -331,7 +331,7 @@ void InnerNode::maybe_descend(){
     if(msgcnt_>=tree_->options_.inner_node_msg_number){
         idx = descend_msgbuf_idx();
     }else{
-        // rLock_unlock();
+        rLock_unlock();
         return;
     }
 
@@ -341,19 +341,19 @@ void InnerNode::maybe_descend(){
 
     DataNode *node = nullptr;
     if(nid==NID_NIL){
-        // rLock_unlock();
-        // write_lock();
-        // idx = descend_msgbuf_idx();
-        // mb = msgbuf(idx);
-        // nid = child(idx);
-        // if(nid==NID_NIL){
+        rLock_unlock();
+        write_lock();
+        idx = descend_msgbuf_idx();
+        mb = msgbuf(idx);
+        nid = child(idx);
+        if(nid==NID_NIL){
             node = tree_->new_leaf_node();
             set_child(idx,node->nid());
-        // }else{
-        //     node = tree_->load_node(nid);
-        // }
-        // wlock_unlock();
-        // read_lock();
+        }else{
+            node = tree_->load_node(nid);
+        }
+        wlock_unlock();
+        read_lock();
     }else{
         node = tree_->load_node(nid);
     }
@@ -399,13 +399,13 @@ bool InnerNode::descend(const Msg& m,InnerNode* parent){
 }
 
 bool InnerNode::descend(MsgBuf* mb,InnerNode* parent){
-    // read_lock();
-    // mb->write_lock();
+    read_lock();
+    mb->write_lock();
     size_t oldcnt = mb->count();
     if(oldcnt==0){
-        // mb->wlock_unlock();
-        // parent->rLock_unlock();
-        // rLock_unlock();
+        mb->wlock_unlock();
+        parent->rLock_unlock();
+        rLock_unlock();
         return true;
     }
     int i = 0; //mb的idx
@@ -428,19 +428,19 @@ bool InnerNode::descend(MsgBuf* mb,InnerNode* parent){
     }
     mb->clear();
     parent->msgcnt_ = parent->msgcnt_+mb->count()-oldcnt;
-    // mb->wlock_unlock();
-    // parent->rLock_unlock();
-    // maybe_descend();
+    mb->wlock_unlock();
+    parent->rLock_unlock();
+    maybe_descend();
     return true;
 }
 
 bool InnerNode::descend_no_fix(MsgBuf* mb){
-    // read_lock();
-    // mb->write_lock();
+    read_lock();
+    mb->write_lock();
     size_t oldcnt = mb->count();
     if(oldcnt==0){
-        // mb->wlock_unlock();
-        // rLock_unlock();
+        mb->wlock_unlock();
+        rLock_unlock();
         return true;
     }
     int i = 0; //mb的idx
@@ -463,8 +463,8 @@ bool InnerNode::descend_no_fix(MsgBuf* mb){
     }
     mb->clear();
     msgcnt_ = msgcnt_+mb->count()+oldcnt;
-    // mb->wlock_unlock();
-    // rLock_unlock();
+    mb->wlock_unlock();
+    rLock_unlock();
     return true;
 }
 
@@ -472,28 +472,28 @@ void InnerNode::lock_range_leaf(IndexKey startKey, IndexKey endKey, List<DataNod
 
 void InnerNode::rangeScan(IndexKey startKey, IndexKey endKey, List<Tuple*>& values){}
 
-size_t InnerNode::byteSize(){
-    // bool + bid_t
-    size_t childBytes = 0;
-    if(first_child_!=NID_NIL){
-        bid_t chidx = first_child_;
-        DataNode *ch = tree_->load_node(chidx);
-        childBytes+=ch->byteSize();
-    }
-    for (int i = 0; i < pivots_.size(); i++)
-    {
-        bid_t chidx = pivots_[i].child;
-        DataNode *ch = tree_->load_node(chidx);
-        childBytes+=ch->byteSize();
-    }
-    return 1+8+pivots_.byteSize(pivots_.size())+childBytes;
-}
+// size_t InnerNode::byteSize(){
+//     // bool + bid_t
+//     size_t childBytes = 0;
+//     if(first_child_!=NID_NIL){
+//         bid_t chidx = first_child_;
+//         DataNode *ch = tree_->load_node(chidx);
+//         childBytes+=ch->byteSize();
+//     }
+//     for (int i = 0; i < pivots_.size(); i++)
+//     {
+//         bid_t chidx = pivots_[i].child;
+//         DataNode *ch = tree_->load_node(chidx);
+//         childBytes+=ch->byteSize();
+//     }
+//     return 1+8+pivots_.byteSize(pivots_.size())+childBytes;
+// }
 
 // ...... LeafNode ...... //
 
 LeafNode::~LeafNode(){
     records_.bucket_.records->clear();
-    records_.bucket_.length = 0;
+    // records_.bucket_.length = 0;
 }
 
 void LeafNode::split(IndexKey anchor){
@@ -1078,11 +1078,11 @@ bool LeafNode::descend(const Msg& m,InnerNode* parent){
 bool LeafNode::descend(MsgBuf* mb, InnerNode * parent){
     write_lock();
 
-    // mb->write_lock();
+    mb->write_lock();
     size_t oldcnt = mb->count();
     if(oldcnt==0){
-        // mb->wlock_unlock();
-        // parent->rLock_unlock();
+        mb->wlock_unlock();
+        parent->rLock_unlock();
         wlock_unlock();
         return true;
     }
@@ -1105,9 +1105,9 @@ bool LeafNode::descend(MsgBuf* mb, InnerNode * parent){
             }
         }
     }
-    if(mb->count()){
-        // mb->wlock_unlock();
-        // parent->rLock_unlock();
+    if(mb->count()==0){
+        mb->wlock_unlock();
+        parent->rLock_unlock();
         wlock_unlock();
         return true;
     }
@@ -1167,8 +1167,8 @@ bool LeafNode::descend(MsgBuf* mb, InnerNode * parent){
     
     mb->clear();
     parent->msgcnt_ = parent->msgcnt_+mb->count()-oldcnt;
-    // mb->wlock_unlock();
-    // parent->rLock_unlock();
+    mb->wlock_unlock();
+    parent->rLock_unlock();
     
     if(records_.size()==0){
         merge(anchor);
@@ -1183,10 +1183,10 @@ bool LeafNode::descend(MsgBuf* mb, InnerNode * parent){
 bool LeafNode::descend_no_fix(MsgBuf* mb){
     write_lock();
 
-    // mb->write_lock();
+    mb->write_lock();
     size_t oldcnt = mb->count();
     if(oldcnt==0){
-        // mb->wlock_unlock();
+        mb->wlock_unlock();
         wlock_unlock();
         return true;
     }
@@ -1209,8 +1209,8 @@ bool LeafNode::descend_no_fix(MsgBuf* mb){
             }
         }
     }
-    if(mb->count()){
-        // mb->wlock_unlock();
+    if(mb->count()==0){
+        mb->wlock_unlock();
         wlock_unlock();
         return true;
     }
@@ -1269,7 +1269,7 @@ bool LeafNode::descend_no_fix(MsgBuf* mb){
     }
     
     mb->clear();
-    // mb->wlock_unlock();
+    mb->wlock_unlock();
     wlock_unlock();
     return true;
 }
@@ -1322,9 +1322,9 @@ int LeafNode::treeHeight(){
     return 1;
 }
 
-size_t LeafNode::byteSize(){
-    return 1+8+8+8+8+records_.length();
-}
+// size_t LeafNode::byteSize(){
+//     return 1+8+8+8+8+records_.length();
+// }
 
 void LeafNode::move_to_right(const Msg& m){
     // printf("\033[31m touch move_to_right \033[0m");

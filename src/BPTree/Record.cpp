@@ -10,14 +10,14 @@ void RecordBucket::push_back(Record record){
         records = new Records;
         RecordBucketInfo info;
         info.records = records;
-        info.length = 4;
+        // info.length = 4;
         bucket_ = info;
-        length_+= info.length;
+        // length_+= info.length;
     }else{
         records = bucket_.records;
     }
     records->push_back(record);
-    length_ += record.size();
+    // length_ += record.size();
     size_++;
 }
 
@@ -33,12 +33,12 @@ IndexKey RecordBucket::split(RecordBucket &other){
 
     src->removeRange(n,src->size()-n);
 
-    bucket_.length = 4;
-    for (int i = 0; i < src->size(); i++)
-    {
-        bucket_.length += (*src)[i].size();
-    }
-    length_ = bucket_.length;
+    // bucket_.length = 4;
+    // for (int i = 0; i < src->size(); i++)
+    // {
+    //     bucket_.length += (*src)[i].size();
+    // }
+    // length_ = bucket_.length;
     size_ = src->size();
     other.set_bucket(dst);
 
@@ -50,6 +50,6 @@ IndexKey RecordBucket::split(RecordBucket &other){
 
 void RecordBucket::swap(RecordBucket &other){
     std::swap(bucket_,other.bucket_);
-    std::swap(length_,other.length_);
+    // std::swap(length_,other.length_);
     std::swap(size_,other.size_);
 }

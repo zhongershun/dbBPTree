@@ -45,7 +45,7 @@ public:
 
     int treeHeight();
 
-    size_t byteSize();
+    // size_t byteSize();
     
     // debug用
     void scan();

@@ -90,6 +90,6 @@ Node* NodePool::get(const IndexID& idxid, bid_t nid){
     return node;
 }
 
-size_t NodePool::byteSize(){
-    return 8*nodes_.size();
-}
+// size_t NodePool::byteSize(){
+//     return 8*nodes_.size();
+// }

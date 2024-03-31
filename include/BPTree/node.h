@@ -142,7 +142,7 @@ public:
 
     virtual void rangeScan(IndexKey startKey, IndexKey endKey, List<Tuple*>& values) = 0;
 
-    virtual size_t byteSize() = 0;
+    // virtual size_t byteSize() = 0;
 
 protected:
     Tree *tree_;
@@ -206,7 +206,7 @@ public:
 
     int treeHeight();
 
-    size_t byteSize();
+    // size_t byteSize();
 
     void lock_range_leaf(IndexKey startKey, IndexKey endKey, List<DataNode*>& range);
 
@@ -278,7 +278,7 @@ public:
 
     void rangeScan(IndexKey startKey, IndexKey endKey, List<Tuple*>& values);
 
-    size_t byteSize();
+    // size_t byteSize();
 
     IndexKey                first_key_;
     

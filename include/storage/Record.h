@@ -73,16 +73,17 @@ public:
     };
 
     RecordBucket():
-    length_(0),size_(0){bucket_.records = new Records();}
+    // length_(0),
+    size_(0){bucket_.records = new Records();}
 
     ~RecordBucket(){ //有问题
         delete bucket_.records;
         bucket_.records = nullptr;
     };
     
-    size_t bucket_length(){ // 实际返回存储的records占据的大小
-        return bucket_.length;
-    }
+    // size_t bucket_length(){ // 实际返回存储的records占据的大小
+    //     return bucket_.length;
+    // }
 
     Records* records(int index){
         return bucket_.records;
@@ -91,12 +92,12 @@ public:
     void set_bucket(Records* records){
         // assert(bucket_.records==nullptr);
         bucket_.records=records;
-        bucket_.length = 4;
-        for (size_t i = 0; i < records->size(); i++)
-        {
-            bucket_.length+=(*records)[i].size();
-        }
-        length_+=bucket_.length;
+        // bucket_.length = 4;
+        // for (size_t i = 0; i < records->size(); i++)
+        // {
+        //     bucket_.length+=(*records)[i].size();
+        // }
+        // length_+=bucket_.length;
         size_+=bucket_.records->size();
     }
 
@@ -104,7 +105,7 @@ public:
     
     void push_back(Record record);
 
-    size_t length(){return length_;}
+    // size_t length(){return length_;}
     size_t size(){return size_;}
     Record& operator[](size_t idx){
         assert(idx<size_);
@@ -117,14 +118,14 @@ public:
 
     struct RecordBucketInfo {
         Records    *records;
-        size_t      length;
+        // size_t      length;
     };
 
     RecordBucketInfo bucket_;
 
 private:
 
-    size_t length_; // length_记录占用内存
+    // size_t length_; // length_记录占用内存
 
     size_t size_; // size_记录含有的record的数量
 };

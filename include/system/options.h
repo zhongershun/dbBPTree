@@ -18,7 +18,7 @@ public:
     Options(int order){
         inner_node_children_number = order;
         leaf_node_record_count = order;
-        inner_node_msg_number = 0;
+        inner_node_msg_number = order;
         comparator = new DefaultCompare<IndexKey>;
     };
     ~Options(){};

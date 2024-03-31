@@ -32,7 +32,7 @@ public:
 
     Node* get(const IndexID& idxid, bid_t nid);
 
-    size_t byteSize();
+    // size_t byteSize();
 
 private:
 
