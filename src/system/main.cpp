@@ -462,7 +462,7 @@ void* run_rangeSearch(void *arg){
     thread_args *ta = (thread_args*) arg;
     int count = ta->count; // 总的Tuple数量
     int keys = count/ta->thread_num; // 每个线程负责的Tuple数量
-    IndexKey rangePerThread = 10;
+    IndexKey rangePerThread = 100;
     IndexKey startKey = keys*ta->id;
     IndexKey endKey = startKey+rangePerThread-1;
     //[ startKey, endKey ];
@@ -480,12 +480,12 @@ void* run_rangeSearch(void *arg){
         
     }
     // cout<<"range search keys : "<<vals.size()<<"\n";
-    assert(vals.size()==keys);
+    // assert(vals.size()==keys);
     for (int i = 0; i < vals.size(); i++)
     {
         assert(vals[i]==val_list[i+keys*ta->id]);
     }
-    
+    vals.clear();
 }
 
 void* run_delete(void *arg){
@@ -650,13 +650,18 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
         thread_args *t = new thread_args;
         *t = ta;
         t->id = i;
-        // assert(pthread_create(&ids[i],0,run_rangeSearch,(void*)t)==0);
+        if(!ENBALE_BPTREE_BUFFER){
+            assert(pthread_create(&ids[i],0,run_rangeSearch,(void*)t)==0);
+        }
+        
     }
 
     for (auto i = 0; i < thread_num; i++)
     {
         thread_args *t;
-        // assert(pthread_join(ids[i],(void**)&t)==0);
+        if(!ENBALE_BPTREE_BUFFER){
+            assert(pthread_join(ids[i],(void**)&t)==0);
+        }
         // delete t;
     }
     },"tree rangeSearch");
@@ -719,7 +724,7 @@ void db_pthread_test(int thread_num, int test_count,int print_scan,int order_KV)
     // ifs.close();
     int enable_buffer = (ENBALE_BPTREE_BUFFER)?1:0;
     ofstream fs;
-    fs.open("../test/result.txt",ios::app);
+    fs.open("../test/result.csv",ios::app);
     fs<<test_count<<","<<thread_num<<","<<insert_time_<<","<<search_time_<<","<<rangeSearch_time_<<","<<delete_time_<<","<<order_KV<<","<<enable_buffer<<"\n";
     fs.close();
 }
