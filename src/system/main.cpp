@@ -415,7 +415,7 @@ void* run_insert(void *arg){
         assert(ta->db->put(k,val_list[k]));
         Tuple *tmp;
         // assert(ta->db->get(k,tmp));
-        if(i%100==0){
+        if(i%10000==0){
             rw_lock.GetWriteLock();
             printProgressBar(i*100/keys,ta->id);
             rw_lock.ReleaseWriteLock();
@@ -450,7 +450,7 @@ void* run_search(void *arg){
         // }
         assert(ta->db->get(k,val));
         assert(val==val_list[k]);
-        if(i%100==0){
+        if(i%10000==0){
             rw_lock.GetWriteLock();
             printProgressBar(i*100/keys,ta->id);
             rw_lock.ReleaseWriteLock();
@@ -510,7 +510,7 @@ void* run_delete(void *arg){
         // }
         assert(ta->db->del(k));
         // assert(val==val_list[k]);
-        if(i%100==0){
+        if(i%10000==0){
             rw_lock.GetWriteLock();
             printProgressBar(i*100/keys,ta->id);
             rw_lock.ReleaseWriteLock();
